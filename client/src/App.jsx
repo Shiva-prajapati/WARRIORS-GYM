@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import "./App.css";
 
-const API = import.meta.env.VITE_API_URL || "/api";
+const rawApi = (import.meta.env.VITE_API_URL || "/api").trim().replace(/\/+$/, "");
+const API = rawApi.endsWith("/api") ? rawApi : (rawApi.startsWith("http") ? `${rawApi}/api` : "/api");
 const money = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
@@ -27,7 +28,9 @@ const money = new Intl.NumberFormat("en-IN", {
 });
 const token = () => localStorage.getItem("warrior_token");
 async function api(path, options = {}) {
-  const res = await fetch(`${API}${path}`, {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = `${API}${normalizedPath}`;
+  const res = await fetch(url, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -35,7 +38,17 @@ async function api(path, options = {}) {
       ...options.headers,
     },
   });
-  const data = await res.json();
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(
+      !res.ok
+        ? `Server error (${res.status}): ${res.statusText || "Service unavailable"}`
+        : "Invalid server response"
+    );
+  }
   if (!res.ok) throw new Error(data.message || "Something went wrong");
   return data;
 }

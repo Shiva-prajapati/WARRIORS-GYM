@@ -32,6 +32,7 @@ if (missingEnvironment.length) {
 }
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = Number(process.env.PORT || 4000);
 const JWT_SECRET = process.env.JWT_SECRET || 'warriors_gym_auth_secret_fallback';
 const allowedOrigins = new Set([clientUrl, 'http://localhost:5173', 'http://127.0.0.1:5173']);
@@ -58,8 +59,8 @@ const isOriginAllowed = (origin) => {
   } catch {}
   return false;
 };
-const paymentLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false });
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false });
+const paymentLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false, validate: { trustProxy: false } });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false, validate: { trustProxy: false } });
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -108,6 +109,14 @@ app.use(async (_req, _res, next) => {
     } catch (err) {
       console.warn('Database auto-connect attempt failed:', err.message);
     }
+  }
+  next();
+});
+
+// Automatically route requests missing /api prefix (e.g. /auth/login -> /api/auth/login)
+app.use((req, _res, next) => {
+  if (!req.url.startsWith('/api')) {
+    req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
   }
   next();
 });
@@ -1105,7 +1114,10 @@ app.get('/api/admin/dashboard', auth, ownerOnly, async (req, res) => {
     growthSeries: [],
   });
 });
-app.use((error, _, res, __) => { console.error('Request failed:', error.message); res.status(500).json({ message: 'Server error' }); });
+app.use((error, _, res, __) => {
+  console.error('Request failed:', error);
+  res.status(500).json({ message: error.message || 'Server error' });
+});
 
 if (require.main === module) {
   app.listen(PORT, () => {
