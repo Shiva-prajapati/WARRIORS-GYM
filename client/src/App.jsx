@@ -233,7 +233,6 @@ function Auth({ mode, onSuccess, onBack }) {
     name: "",
     phone: "",
     password: "",
-    address: "",
     village: "",
     profilePicture: "",
     experience: "BEGINNER",
@@ -356,17 +355,7 @@ function Auth({ mode, onSuccess, onBack }) {
                 />
               </label>
               <label>
-                Address
-                <input
-                  name="address"
-                  value={form.address}
-                  onChange={update}
-                  placeholder="Street address or area"
-                  required
-                />
-              </label>
-              <label>
-                Village / Locality (Optional)
+                Village / Locality
                 <input
                   name="village"
                   value={form.village}
@@ -455,6 +444,7 @@ function Shell({ user, owner = false, page, setPage, onLogout, notificationCount
     : memberLinks;
   return (
     <div className={`app-shell ${owner ? "owner-shell" : ""}`}>
+      {open && <div className="sidebar-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />}
       <aside className={`sidebar ${open ? "open" : ""}`}>
         <div className="sidebar-top">
           <Brand compact />
@@ -1085,7 +1075,6 @@ function ProfilePage({ user }) {
       <div className="profile-fields">
         {[
           ["PHONE", user.phone],
-          ["ADDRESS", user.address || "Address not added"],
           ["VILLAGE / LOCALITY", user.village || "Not added"],
           ["EXPERIENCE", user.experience || "BEGINNER"],
         ].map(([k, v]) => (
@@ -1132,7 +1121,6 @@ function AddMemberModal({ plans, onClose, onCreate }) {
   const [form, setForm] = useState({
     name: "",
     phone: "",
-    address: "",
     village: "",
     profilePicture: "",
     experience: "BEGINNER",
@@ -1195,7 +1183,6 @@ function AddMemberModal({ plans, onClose, onCreate }) {
     setError("");
     if (!form.name.trim()) return setError("Full name is required.");
     if (!/^[6-9][0-9]{9}$/.test(form.phone.trim())) return setError("Enter a valid 10-digit Indian mobile number.");
-    if (!form.address.trim()) return setError("Address is required.");
     if (form.password.length < 8) return setError("Password must be at least 8 characters.");
 
     if (form.planId) {
@@ -1244,15 +1231,10 @@ function AddMemberModal({ plans, onClose, onCreate }) {
           </label>
         </div>
 
-        <label>
-          Address *
-          <input name="address" value={form.address} onChange={update} placeholder="Actual street or residential address" required />
-        </label>
-
         <div className="field-row">
           <label>
-            Village / Locality (Optional)
-            <input name="village" value={form.village} onChange={update} placeholder="Village or local area" />
+            Village / Locality
+            <input name="village" value={form.village} onChange={update} placeholder="Village or locality name" />
           </label>
           <label>
             Experience Level
@@ -1530,7 +1512,6 @@ function MemberDetailModal({
           <div>
             <div className="profile-fields" style={{ marginBottom: 22 }}>
               <div><small>PHONE</small><b>{member.phone}</b></div>
-              <div><small>ADDRESS</small><b>{member.address || "Address not added"}</b></div>
               <div><small>VILLAGE / LOCALITY</small><b>{member.village || "Not added"}</b></div>
               <div><small>EXPERIENCE</small><b>{member.experience || "BEGINNER"}</b></div>
               <div><small>JOINED</small><b>{new Date(member.createdAt).toLocaleDateString("en-IN")}</b></div>

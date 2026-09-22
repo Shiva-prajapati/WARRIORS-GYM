@@ -353,11 +353,11 @@ app.get('/api/health', async (_, res) => {
   });
 });
 app.post('/api/auth/register', authLimiter, async (req, res) => {
-  const { name, phone, password, email, village, address, profilePicture, dateOfBirth, gender, experience } = req.body || {};
+  const { name, phone, password, email, village, profilePicture, dateOfBirth, gender, experience } = req.body || {};
   if (!validateString(name, 2, 100) || !validPhone(phone) || !validPassword(password)) return res.status(400).json({ message: 'Name, phone and password are required and valid' });
   try {
     const cleanPhone = normalizePhone(phone) || phone.trim();
-    const user = await User.create({ name: name.trim(), phone: cleanPhone, passwordHash: await bcrypt.hash(password, 12), email, village, address, profilePicture, dateOfBirth, gender, experience, role: 'member' });
+    const user = await User.create({ name: name.trim(), phone: cleanPhone, passwordHash: await bcrypt.hash(password, 12), email, village: typeof village === 'string' ? village.trim() : undefined, profilePicture, dateOfBirth, gender, experience, role: 'member' });
     res.status(201).json({ user: safeUser(user), token: tokenFor(user) });
   } catch (error) {
     if (duplicateResponse(error, res)) return;
@@ -397,7 +397,7 @@ app.post('/api/auth/change-password', auth, authLimiter, async (req, res) => {
 });
 app.get('/api/auth/me', auth, (req, res) => res.json({ user: safeUser(req.user) }));
 app.put('/api/auth/profile', auth, async (req, res) => {
-  const allowedFields = ['name', 'phone', 'email', 'address', 'village', 'profilePicture', 'dateOfBirth', 'gender', 'experience'];
+  const allowedFields = ['name', 'phone', 'email', 'village', 'profilePicture', 'dateOfBirth', 'gender', 'experience'];
   const submittedFields = Object.keys(req.body || {});
   const invalidFields = submittedFields.filter((field) => !allowedFields.includes(field));
   if (invalidFields.length) return res.status(400).json({ message: `Unsupported profile fields: ${invalidFields.join(', ')}` });
@@ -736,7 +736,7 @@ app.post('/api/admin/notifications/:id/send-reminder', auth, ownerOnly, async (r
 });
 
 app.post('/api/members', auth, ownerOnly, async (req, res) => {
-  const allowedFields = ['name', 'phone', 'password', 'address', 'village', 'profilePicture', 'experience', 'isActive', 'planId', 'paymentMethod', 'notes', 'startDate', 'endDate'];
+  const allowedFields = ['name', 'phone', 'password', 'village', 'profilePicture', 'experience', 'isActive', 'planId', 'paymentMethod', 'notes', 'startDate', 'endDate'];
   if (Object.keys(req.body || {}).some((field) => !allowedFields.includes(field))) {
     return res.status(400).json({ message: 'Unsupported member fields' });
   }
@@ -744,7 +744,6 @@ app.post('/api/members', auth, ownerOnly, async (req, res) => {
     name,
     phone,
     password,
-    address,
     village,
     profilePicture,
     experience = 'BEGINNER',
@@ -803,7 +802,6 @@ app.post('/api/members', auth, ownerOnly, async (req, res) => {
       name: name.trim(),
       phone: cleanPhone,
       passwordHash: await bcrypt.hash(password, 12),
-      address: typeof address === 'string' ? address.trim() : undefined,
       village: typeof village === 'string' ? village.trim() : undefined,
       profilePicture,
       experience,
@@ -1022,7 +1020,7 @@ app.get('/api/members/:id', auth, ownerOnly, async (req, res) => {
 
 app.put('/api/members/:id', auth, ownerOnly, async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid member ID' });
-  const allowedFields = ['name', 'phone', 'email', 'address', 'village', 'profilePicture', 'dateOfBirth', 'gender', 'experience', 'isActive'];
+  const allowedFields = ['name', 'phone', 'email', 'village', 'profilePicture', 'dateOfBirth', 'gender', 'experience', 'isActive'];
   if (Object.keys(req.body || {}).some((field) => !allowedFields.includes(field))) return res.status(400).json({ message: 'Unsupported member fields' });
   const member = await User.findOneAndUpdate({ _id: req.params.id, role: 'member' }, { $set: req.body }, { new: true, runValidators: true });
   if (!member) return res.status(404).json({ message: 'Member not found' });

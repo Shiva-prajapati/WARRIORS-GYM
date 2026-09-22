@@ -85,7 +85,6 @@ async function run() {
       name: 'Arjun Test Singh',
       phone: testPhone,
       password: 'password123',
-      address: '42 MG Road, Performance Hub',
       village: 'Central Zone',
       experience: 'INTERMEDIATE',
       planId: testPlan.id,
@@ -99,7 +98,7 @@ async function run() {
   const testPayment = memberData.payment;
   const testSubscription = memberData.membership;
   console.log('[7/10] POST /api/members with CASH passed:');
-  console.log('       Member ID:', testMember.id, 'Address:', testMember.address);
+  console.log('       Member ID:', testMember.id, 'Village:', testMember.village);
   console.log('       Payment Status:', testPayment.status, 'Method:', testPayment.paymentMethod);
   console.log('       Subscription Status:', testSubscription.status, 'Ends:', testSubscription.endDate);
 

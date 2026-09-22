@@ -9,7 +9,6 @@ const userSchema = new Schema({
   passwordHash: { type: String, required: true, select: false },
   role: { type: String, enum: ['member', 'owner'], default: 'member', required: true },
   village: { type: String, trim: true, maxlength: 100 },
-  address: { type: String, trim: true, maxlength: 300 },
   profilePicture: { type: String, maxlength: 3_000_000 },
   dateOfBirth: { type: Date },
   gender: { type: String, enum: ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'] },

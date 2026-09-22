@@ -10,9 +10,12 @@
 * {
   box-sizing: border-box;
 }
+html,
 body {
   margin: 0;
   min-width: 320px;
+  max-width: 100vw;
+  overflow-x: hidden;
   background: #11110f;
 }
 button,
@@ -1707,21 +1710,37 @@ h3 {
 .mobile-menu {
   color: #342f29;
 }
+
+/* Mobile Sidebar Backdrop */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 95;
+  animation: fadeInBackdrop 0.2s ease forwards;
+}
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (max-width: 900px) {
   .nav-links {
     display: none;
   }
   .hero-section {
     grid-template-columns: 1fr;
-    padding: 70px 9vw 30px;
+    padding: 60px 6vw 30px;
   }
   .hero-art {
-    height: 370px;
-    margin-top: -50px;
+    height: 340px;
+    margin-top: -30px;
   }
   .manifesto,
   .plan-strip {
-    padding: 80px 9vw;
+    padding: 60px 6vw;
     grid-template-columns: 1fr;
   }
   .plan-teaser {
@@ -1735,22 +1754,33 @@ h3 {
     grid-template-columns: 1fr;
   }
   .auth-visual {
-    min-height: 340px;
-    padding: 25px 8vw;
+    min-height: 280px;
+    padding: 24px 6vw;
   }
   .auth-visual-copy {
-    bottom: 45px;
+    bottom: 35px;
   }
   .auth-form-wrap {
-    padding: 45px 9vw;
-    min-height: 600px;
+    padding: 35px 6vw;
+    min-height: 520px;
   }
   .sidebar {
     transform: translateX(-100%);
-    transition: 0.2s;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+    width: min(280px, 82vw);
+    box-shadow: 10px 0 35px rgba(0, 0, 0, 0.6);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .sidebar.open {
     transform: translateX(0);
+  }
+  .sidebar nav button,
+  .logout {
+    min-height: 46px;
+    font-size: 13px;
+    touch-action: manipulation;
   }
   .close-menu,
   .mobile-menu {
@@ -1761,12 +1791,13 @@ h3 {
     width: 100%;
   }
   .app-header {
-    padding: 25px 6vw;
-    height: 105px;
+    padding: 16px 5vw;
+    height: auto;
+    min-height: 70px;
     gap: 15px;
   }
   .content {
-    padding: 30px 6vw 60px;
+    padding: 24px 5vw 60px;
   }
   .quick-grid,
   .plans-grid,
@@ -1791,107 +1822,339 @@ h3 {
     min-width: 720px;
   }
   .table-panel {
-    overflow: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .profile-fields {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+@media (max-width: 768px) {
+  /* Prevent iOS automatic zoom on form input focus */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+  button, input, select {
+    touch-action: manipulation;
+  }
+  .app-header {
+    padding: 12px 16px;
+    min-height: 62px;
+    gap: 12px;
+    align-items: center;
+  }
+  .app-header h1 {
+    font-size: 20px;
+    line-height: 1.2;
+  }
+  .app-header .kicker {
+    font-size: 9px;
+    margin-bottom: 2px;
+  }
+  .mobile-menu {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    background: #1d1c18;
+    border-radius: 4px;
+    color: #f3f0eb;
+    border: 1px solid #36342e;
+    flex-shrink: 0;
+  }
+  .content {
+    padding: 18px 16px 50px;
+  }
+  .table-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .table-search input {
+    width: 100% !important;
+    min-height: 42px;
+    box-sizing: border-box;
+  }
+  .filter-pills {
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    padding-bottom: 4px;
+    margin-top: 0;
+    scrollbar-width: none;
+  }
+  .filter-pills::-webkit-scrollbar {
+    display: none;
+  }
+  .filter-pills button {
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-height: 36px;
+    padding: 8px 14px;
+    font-size: 11px;
+    border-radius: 4px;
+  }
+  .auth-page {
+    grid-template-columns: 1fr;
+    min-height: 100vh;
+  }
+  .auth-visual {
+    min-height: 180px;
+    max-height: 220px;
+    padding: 20px 16px;
+  }
+  .auth-visual-copy h2 {
+    font-size: 24px;
+  }
+  .auth-visual-copy p {
+    font-size: 12px;
+  }
+  .auth-form-wrap {
+    padding: 24px 16px 40px;
+    min-height: auto;
+  }
+  .auth-toggle {
+    margin-bottom: 24px;
+  }
+  .auth-toggle button {
+    min-height: 42px;
+  }
+}
+
 @media (max-width: 560px) {
+  /* Landing page mobile styling */
   .landing-nav {
-    padding: 0 5vw;
+    height: 64px;
+    padding: 0 16px;
   }
   .landing-nav .button {
-    padding: 10px;
-    font-size: 9px;
+    padding: 9px 13px;
+    font-size: 10px;
+  }
+  .hero-section {
+    padding: 30px 16px 20px;
+    gap: 20px;
   }
   .hero-copy h1 {
-    font-size: 58px;
+    font-size: 38px;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+  .hero-copy p {
+    font-size: 14px;
+    line-height: 1.5;
   }
   .hero-art {
-    height: 300px;
+    height: 220px;
+    margin-top: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
-  .plate-back {
-    width: 220px;
-  }
-  .plate-mid {
-    width: 185px;
-  }
-  .plate-front {
-    width: 150px;
-  }
-  .marquee {
-    font-size: 8px;
+  .plate-back { width: 170px; }
+  .plate-mid { width: 140px; }
+  .plate-front { width: 110px; }
+  .marquee { font-size: 8px; }
+  .manifesto,
+  .plan-strip {
+    padding: 40px 16px;
   }
   .manifesto-stats {
-    gap: 25px;
-    flex-wrap: wrap;
+    gap: 16px;
   }
   .manifesto-stats b {
-    font-size: 27px;
+    font-size: 24px;
   }
   .landing footer {
-    font-size: 8px;
+    padding: 20px 16px;
+    font-size: 9px;
+  }
+
+  /* Member & Owner Dashboard mobile styling */
+  .dashboard-grid {
+    gap: 16px;
   }
   .welcome-banner {
-    padding: 25px;
+    padding: 18px 16px;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
   }
   .welcome-banner h2 {
-    font-size: 27px;
+    font-size: 20px;
+    line-height: 1.25;
+  }
+  .welcome-banner p {
+    font-size: 12px;
+    line-height: 1.4;
+    margin-top: 4px;
+  }
+  .welcome-banner .eyebrow {
+    font-size: 9px;
+    margin-bottom: 4px;
   }
   .banner-mark {
-    font-size: 130px;
+    font-size: 75px;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%) skew(-9deg);
+    opacity: 0.12;
   }
   .membership-hero {
-    padding: 28px 24px;
+    padding: 20px 16px;
+    flex-direction: column-reverse;
+    gap: 16px;
   }
   .membership-hero h3 {
-    font-size: 50px;
+    font-size: 36px;
+    line-height: 1;
   }
-  .progress-orb {
-    width: 100px;
-    height: 100px;
+  .membership-hero .progress-orb {
+    margin: 0 auto;
+    width: 80px;
+    height: 80px;
+  }
+  .date-line {
+    flex-direction: column;
+    gap: 6px;
+    font-size: 11px;
   }
   .quick-grid,
-  .plans-grid,
-  .diet-grid,
-  .owner-stats {
+  .diet-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
   .section-heading {
     align-items: start;
-    gap: 15px;
+    gap: 12px;
   }
-  .date-line {
-    gap: 15px;
+  .section-heading h2 {
+    font-size: 22px;
   }
   .progress-card {
     flex-wrap: wrap;
-    padding: 25px;
+    padding: 20px 16px;
   }
   .progress-card .target-ring {
     margin-left: 0;
   }
   .row-intro {
     align-items: start;
-    gap: 20px;
+    gap: 16px;
     flex-direction: column;
   }
-  .owner-plan {
-    grid-template-columns: 50px 1fr 90px;
+
+  /* Membership plans on phone screens */
+  .plans-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
-  .owner-plan .status,
-  .owner-plan .icon-button {
-    display: none;
+  .plan-card {
+    padding: 22px 18px;
+    border-radius: 4px;
   }
-  .table-toolbar {
-    display: block;
+  .plan-card strong {
+    font-size: 32px;
   }
-  .filter-pills {
-    margin-top: 17px;
+  .plan-card .button {
+    min-height: 46px;
+    font-size: 12px;
+    justify-content: center;
+    width: 100%;
   }
-  .auth-toggle {
-    margin-bottom: 40px;
+
+  /* Modals on phone screens */
+  .modal-backdrop {
+    padding: 10px;
+    z-index: 200;
+    align-items: center;
+  }
+  .payment-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 22px 16px !important;
+    max-height: 92vh !important;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+  .payment-modal h3 {
+    font-size: 22px;
+  }
+  .modal-close {
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+  }
+  .field-row {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .payment-submit {
+    min-height: 48px;
+    font-size: 13px;
+    width: 100%;
+    justify-content: center;
+  }
+  .profile-fields {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .owner-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .stat-card {
+    padding: 14px 12px;
+  }
+  .stat-card h3 {
+    font-size: 22px;
+  }
+  .owner-topline {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .owner-topline .button {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+  .workout-row {
+    grid-template-columns: 70px 1fr;
+    gap: 12px;
+    padding: 16px 14px;
+  }
+  .delete-member-summary {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .flash-alert {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .flash-alert-left {
+    min-width: unset;
+    width: 100%;
+  }
+  .flash-alert-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 380px) {
+  .owner-stats {
+    grid-template-columns: 1fr;
+  }
+  .hero-copy h1 {
+    font-size: 32px;
+  }
+  .welcome-banner h2 {
+    font-size: 18px;
   }
 }
 
