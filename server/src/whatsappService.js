@@ -16,7 +16,6 @@ function formatPhoneForWhatsApp(phone) {
   return cleaned;
 }
 
-const FALLBACK_PAYMENT_LINK = 'https://razorpay.me/@shivaprajapatiwarriorsgym';
 
 function formatINR(amount) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
@@ -30,7 +29,7 @@ function buildReminderMessage({ memberName, planName, expiryDate, isExpired, pay
         : `Your ${planPrefix} membership is expiring on ${expiryDate}.`)
     : `Your ${planPrefix} membership is expiring soon.`;
 
-  const resolvedPaymentLink = paymentLink || FALLBACK_PAYMENT_LINK;
+  const resolvedPaymentLink = paymentLink || '';
 
   const numberEmoji = ['1\uFE0F\u20E3', '2\uFE0F\u20E3', '3\uFE0F\u20E3', '4\uFE0F\u20E3', '5\uFE0F\u20E3', '6\uFE0F\u20E3', '7\uFE0F\u20E3', '8\uFE0F\u20E3', '9\uFE0F\u20E3', '\uD83D\uDD1F'];
   const planLines = activePlans.length > 0
@@ -149,13 +148,8 @@ async function sendReminder({ member, subscription, plan, triggeredBy, baseUrl }
     }
   }
 
-  // If Razorpay API credentials are not yet configured in .env, use verified Razorpay payment page fallback
   if (!paymentLink) {
-    if (keyId) {
-      paymentLink = directRenewalUrl;
-    } else {
-      paymentLink = FALLBACK_PAYMENT_LINK;
-    }
+    paymentLink = directRenewalUrl;
   }
 
   const message = buildReminderMessage({ memberName, planName, expiryDate, isExpired, paymentLink, activePlans });
@@ -198,5 +192,4 @@ module.exports = {
   formatPhoneForWhatsApp,
   buildReminderMessage,
   sendReminder,
-  FALLBACK_PAYMENT_LINK,
 };

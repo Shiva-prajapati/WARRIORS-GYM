@@ -578,22 +578,37 @@ function MemberApp({ user, onLogout, initialPage = "dashboard", initialPlanId = 
   const purchase = async (planId) => {
     let checkout;
     try {
-      setNotice("Creating secure payment order...");
+      setNotice("Preparing secure payment order...");
       const order = await api("/payments/orders", {
         method: "POST",
         body: JSON.stringify({ planId }),
       });
+      if (!window.Razorpay) {
+        await new Promise((resolve) => {
+          if (window.Razorpay) return resolve();
+          const script = document.createElement("script");
+          script.src = "https://checkout.razorpay.com/v1/checkout.js";
+          script.onload = () => resolve();
+          script.onerror = () => resolve();
+          document.body.appendChild(script);
+          setTimeout(resolve, 1500);
+        });
+      }
       if (!window.Razorpay) throw new Error("Payment checkout is unavailable. Please check your internet connection.");
       const razorpayKey = order.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
       if (!razorpayKey) throw new Error("Razorpay is not configured (missing key ID in environment).");
       checkout = new window.Razorpay({
         key: razorpayKey,
         amount: order.amount,
-        currency: order.currency,
+        currency: order.currency || "INR",
         order_id: order.orderId,
         name: "Warriors Gym",
-        description: "Gym Membership Plan",
-        prefill: { name: user.name, contact: user.phone },
+        description: order.planName ? `${order.planName} Membership` : "Gym Membership Plan",
+        prefill: {
+          name: user?.name || "",
+          contact: user?.phone || "",
+          email: user?.email || "",
+        },
         handler: async (response) => {
           setNotice("Verifying Razorpay payment on server...");
           try {
@@ -608,6 +623,22 @@ function MemberApp({ user, onLogout, initialPage = "dashboard", initialPlanId = 
         modal: { ondismiss: () => setNotice("Checkout cancelled. Your membership was not changed.") },
         theme: { color: "#db321f" },
       });
+
+      checkout.on("payment.failed", async (response) => {
+        const errorReason = response?.error?.description || response?.error?.reason || "Payment declined";
+        setNotice(`Payment failed: ${errorReason}`);
+        try {
+          await api("/payments/fail", {
+            method: "POST",
+            body: JSON.stringify({
+              orderId: order.orderId,
+              paymentId: response?.error?.metadata?.payment_id,
+              reason: errorReason,
+            }),
+          });
+        } catch (_) {}
+      });
+
       checkout.open();
       return true;
     } catch (e) {
@@ -858,18 +889,7 @@ function MembershipPage({ plans, membership, days, onPurchase, initialPlanId = n
             <div className="cash-note">Razorpay securely supports UPI, cards, net banking, and wallets. Your membership activates only after server verification.</div>
             {paymentError && (
               <div className="form-error" style={{ margin: "14px 0", textAlign: "left", lineHeight: 1.4 }}>
-                <div>{paymentError}</div>
-                <div style={{ marginTop: 8, fontSize: 11, color: "#6b655a" }}>
-                  Official Warriors Gym Razorpay link:{" "}
-                  <a
-                    href="https://razorpay.me/@shivaprajapatiwarriorsgym"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: "#db321f", textDecoration: "underline", wordBreak: "break-all" }}
-                  >
-                    https://razorpay.me/@shivaprajapatiwarriorsgym
-                  </a>
-                </div>
+                {paymentError}
               </div>
             )}
             <Button className="payment-submit" disabled={busy}>
@@ -2696,6 +2716,11 @@ function PaymentsPage({ payments }) {
                 <b style={{ color: p.paymentMethod === "CASH" ? "#246338" : "#24231f" }}>
                   {p.paymentMethod || (p.razorpayPaymentId ? "RAZORPAY" : "ONLINE")}
                 </b>
+                {p.razorpayPaymentId && (
+                  <small style={{ color: "#8e887d", display: "block", fontSize: 10, wordBreak: "break-all" }}>
+                    {p.razorpayPaymentId}
+                  </small>
+                )}
               </span>
               <b>{money.format(p.amount)}</b>
               <div>

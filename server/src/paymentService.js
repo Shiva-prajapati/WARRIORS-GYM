@@ -124,7 +124,7 @@ async function activateCapturedPayment({ orderId, paymentId, expectedUserId, pay
     // Renewal rule: if existing subscription is ACTIVE and endDate is in future, extend from endDate; otherwise start now
     const startsAt = (existingSub && existingSub.status === 'ACTIVE' && existingSub.endDate && new Date(existingSub.endDate) > now)
       ? new Date(existingSub.endDate)
-      : now;
+      : new Date(now);
 
     const endDate = new Date(startsAt);
     if (unit === 'DAYS') {
@@ -134,7 +134,7 @@ async function activateCapturedPayment({ orderId, paymentId, expectedUserId, pay
     } else {
       endDate.setMonth(endDate.getMonth() + duration);
     }
-    endDate.setDate(endDate.getDate() - 1);
+    endDate.setHours(23, 59, 59, 999);
 
     const subscription = await Subscription.findOneAndUpdate(
       { userId: payment.userId },
@@ -186,19 +186,32 @@ async function activateCapturedPayment({ orderId, paymentId, expectedUserId, pay
 async function verifyPayment({ userId, orderId, paymentId, signature }) {
   const payload = `${orderId}|${paymentId}`;
   const secret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
-  if (!secret) throw new Error('Razorpay is not configured (missing secret)');
+  if (!secret) throw new Error('Razorpay is not configured (missing secret in environment)');
   if (!verifyHmac(payload, signature, secret)) throw new Error('Invalid Razorpay signature');
   return activateCapturedPayment({ orderId, paymentId, expectedUserId: userId });
 }
 
 async function markFailed(orderId, paymentId, reason) {
-  if (!validString(orderId)) return;
+  if (!validString(orderId) && !validString(paymentId)) return;
+  const filter = { status: { $ne: 'CAPTURED' } };
+  if (orderId && paymentId) {
+    filter.$or = [{ razorpayOrderId: orderId }, { razorpayPaymentId: paymentId }];
+  } else if (orderId) {
+    filter.razorpayOrderId = orderId;
+  } else {
+    filter.razorpayPaymentId = paymentId;
+  }
   const payment = await Payment.findOneAndUpdate(
-    { razorpayOrderId: orderId, status: { $ne: 'CAPTURED' } },
-    { status: 'FAILED', razorpayPaymentId: paymentId || undefined, failureReason: reason || 'Payment failed' },
+    filter,
+    { status: 'FAILED', ...(paymentId ? { razorpayPaymentId: paymentId } : {}), failureReason: reason || 'Payment failed' },
     { returnDocument: 'after' },
   );
-  if (payment) await Subscription.updateOne({ userId: payment.userId, paymentId: payment._id.toString(), status: 'PENDING' }, { status: 'PAYMENT FAILED' });
+  if (payment) {
+    await Subscription.updateOne(
+      { userId: payment.userId, paymentId: payment._id.toString(), status: 'PENDING' },
+      { status: 'PAYMENT FAILED' }
+    );
+  }
 }
 
 async function markRefunded(paymentId) {
@@ -208,17 +221,18 @@ async function markRefunded(paymentId) {
 
 async function handleWebhook(rawBody, signature) {
   const secret = (process.env.RAZORPAY_WEBHOOK_SECRET || '').trim();
-  if (!secret) throw new Error('Razorpay webhook secret is not configured');
+  if (!secret) throw new Error('Razorpay webhook secret is not configured in environment');
   if (!verifyHmac(rawBody, signature, secret)) throw new Error('Invalid webhook signature');
   const payload = JSON.parse(rawBody.toString('utf8'));
+  const event = payload?.event;
   const eventId = payload?.payload?.payment?.entity?.id || payload?.payload?.order?.entity?.id;
-  if (!eventId) throw new Error('Webhook event identifier missing');
-  const processedEventId = `${payload.event}:${eventId}`;
+  if (!event || !eventId) throw new Error('Webhook event identifier missing');
+  const processedEventId = `${event}:${eventId}`;
 
   try {
     await WebhookEvent.create({
       eventId: processedEventId,
-      event: payload.event,
+      event,
       razorpayOrderId: payload?.payload?.payment?.entity?.order_id || payload?.payload?.order?.entity?.id || null,
       razorpayPaymentId: payload?.payload?.payment?.entity?.id || null,
     });
@@ -233,13 +247,13 @@ async function handleWebhook(rawBody, signature) {
       const orderId = payload?.payload?.order?.entity?.id;
       const client = getRazorpayClient();
       const paymentList = await client.orders.fetchPayments(orderId);
-      payment = paymentList.items?.find((item) => item.status === 'captured');
+      payment = paymentList.items?.find((item) => item.status === 'captured') || paymentList.items?.[0];
     }
     if (payload.event === 'payment.captured' || payload.event === 'order.paid') {
       if (!payment?.id || !payment?.order_id) throw new Error('Webhook payment details missing');
       await activateCapturedPayment({ orderId: payment.order_id, paymentId: payment.id, paymentEntity: payment });
     } else if (payload.event === 'payment.failed') {
-      await markFailed(payment?.order_id, payment?.id, payment?.error_description);
+      await markFailed(payment?.order_id, payment?.id, payment?.error_description || payment?.error_reason);
     } else if (payload.event === 'payment.refunded') {
       await markRefunded(payment?.id);
     }

@@ -21,7 +21,7 @@ const {
   Notification,
   ReminderLog,
 } = require('./models');
-const { createOrder, verifyPayment, handleWebhook } = require('./paymentService');
+const { createOrder, verifyPayment, handleWebhook, markFailed } = require('./paymentService');
 const { sendReminder } = require('./whatsappService');
 
 const clientUrl = process.env.CLIENT_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173');
@@ -68,12 +68,24 @@ app.use(helmet({
 app.use(cors({ origin: (origin, callback) => callback(null, isOriginAllowed(origin)), credentials: true }));
 
 // Razorpay signs the exact raw body. This route must run before express.json().
-app.post('/api/payments/webhook', express.raw({ type: 'application/json', limit: '1mb' }), async (req, res) => {
+app.post(['/api/payments/webhook', '/payments/webhook'], express.raw({ type: '*/*', limit: '2mb' }), async (req, res) => {
   try {
-    await handleWebhook(req.body, req.headers['x-razorpay-signature']);
-    res.json({ ok: true });
+    if (mongoose.connection.readyState !== 1) {
+      await connectDb().catch(() => {});
+    }
+    const signature = req.headers['x-razorpay-signature'];
+    if (!signature) {
+      return res.status(400).json({ ok: false, message: 'Missing x-razorpay-signature header' });
+    }
+    await handleWebhook(req.body, signature);
+    res.json({ ok: true, status: 'processed' });
   } catch (error) {
-    res.status(error.message === 'Invalid webhook signature' ? 400 : 500).json({ message: error.message === 'Invalid webhook signature' ? error.message : 'Webhook processing failed' });
+    console.error('Webhook processing error:', error.message);
+    const isSignatureError = error.message && error.message.includes('signature');
+    res.status(isSignatureError ? 400 : 500).json({
+      ok: false,
+      message: isSignatureError ? 'Invalid webhook signature' : error.message || 'Webhook processing failed'
+    });
   }
 });
 app.use(express.json({ limit: '5mb' }));
@@ -334,6 +346,9 @@ app.get('/api/health', async (_, res) => {
     service: 'warriors-gym-api',
     hasMongoUri: Boolean(process.env.MONGODB_URI),
     mongoState: mongoose.connection.readyState === 1 ? 'CONNECTED' : (mongoose.connection.readyState === 2 ? 'CONNECTING' : 'DISCONNECTED'),
+    hasRazorpayKey: Boolean(process.env.RAZORPAY_KEY_ID),
+    hasRazorpaySecret: Boolean(process.env.RAZORPAY_KEY_SECRET),
+    hasRazorpayWebhookSecret: Boolean(process.env.RAZORPAY_WEBHOOK_SECRET),
     dbError: lastDbError ? lastDbError.message : null,
   });
 });
@@ -487,7 +502,14 @@ app.post('/api/payments/orders', auth, requireMongo, paymentLimiter, async (req,
     const plan = await GymPlan.findOne({ _id: req.body.planId, active: true }).lean();
     if (!plan) return res.status(404).json({ message: 'Plan unavailable' });
     const order = await createOrder({ userId: String(req.user._id), plan: { ...plan, id: String(plan._id) } });
-    res.status(201).json({ orderId: order.id, amount: order.amount, currency: order.currency, keyId: (process.env.RAZORPAY_KEY_ID || '').trim() });
+    res.status(201).json({
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: (process.env.RAZORPAY_KEY_ID || '').trim(),
+      planName: plan.name,
+      planPrice: plan.price,
+    });
   } catch (error) {
     const isConfigError = error.message && error.message.includes('Razorpay is not configured');
     res.status(isConfigError ? 503 : 502).json({ message: error.message || 'Unable to create payment order' });
@@ -504,6 +526,19 @@ app.post('/api/payments/verify', auth, requireMongo, paymentLimiter, async (req,
     res.json({ status: result.payment.status, alreadyProcessed: result.alreadyProcessed });
   } catch (error) {
     res.status(400).json({ message: error.message });
+  }
+});
+
+app.post('/api/payments/fail', auth, requireMongo, async (req, res) => {
+  try {
+    const { orderId, paymentId, reason } = req.body || {};
+    if (!orderId && !paymentId) {
+      return res.status(400).json({ message: 'Order ID or Payment ID is required' });
+    }
+    const payment = await markFailed(orderId, paymentId, reason || 'Payment failed on checkout');
+    res.json({ ok: true, status: payment ? payment.status : 'FAILED' });
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Unable to record payment failure' });
   }
 });
 
