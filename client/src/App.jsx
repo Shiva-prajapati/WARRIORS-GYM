@@ -71,7 +71,33 @@ function formatPhoneForWhatsApp(phone) {
   return cleaned;
 }
 
-function buildWelcomeWhatsAppUrl(member, plans = []) {
+const setMemberCreationPassword = (phone, password) => {
+  if (!phone || !password) return;
+  const clean = String(phone).replace(/[^0-9]/g, "");
+  try {
+    sessionStorage.setItem(`warrior_created_pwd_${clean}`, password);
+    if (clean.length === 10) {
+      sessionStorage.setItem(`warrior_created_pwd_91${clean}`, password);
+    }
+  } catch {}
+};
+
+const getMemberCreationPassword = (phone) => {
+  if (!phone) return "";
+  const clean = String(phone).replace(/[^0-9]/g, "");
+  try {
+    return (
+      sessionStorage.getItem(`warrior_created_pwd_${clean}`) ||
+      (clean.length === 10 ? sessionStorage.getItem(`warrior_created_pwd_91${clean}`) : "") ||
+      (clean.startsWith("91") && clean.length === 12 ? sessionStorage.getItem(`warrior_created_pwd_${clean.slice(2)}`) : "") ||
+      ""
+    );
+  } catch {
+    return "";
+  }
+};
+
+function buildWelcomeWhatsAppUrl(member, plans = [], customPassword = null) {
   const memberName = member?.name || "Member";
   const phone = member?.phone || "";
   const recipientPhone = formatPhoneForWhatsApp(phone);
@@ -82,12 +108,7 @@ function buildWelcomeWhatsAppUrl(member, plans = []) {
     plan = plans.find((p) => String(p.id) === String(sub.planId));
   }
 
-  const planName = plan?.name || sub?.planName || "No active plan";
-  let planDuration = "N/A";
-  if (plan?.duration) {
-    const unit = (plan.durationUnit || "MONTHS").toLowerCase();
-    planDuration = `${plan.duration} ${unit}`;
-  }
+  const planName = plan?.name || sub?.planName || "WARRIORS MEMBERSHIP";
 
   const formatDate = (d) => {
     if (!d) return "N/A";
@@ -103,37 +124,47 @@ function buildWelcomeWhatsAppUrl(member, plans = []) {
 
   const startDate = formatDate(sub?.startDate);
   const endDate = formatDate(sub?.endDate);
-  const loginWebsite = "https://warriors-gym-iota.vercel.app/";
+  const password = customPassword || getMemberCreationPassword(phone) || "[As set during registration]";
 
   const lines = [
-    "🏋️ *WARRIORS GYM - WELCOME TO THE FAMILY* 🏋️",
+    "🎉 WELCOME TO WARRIORS GYM! 💪",
     "",
-    `Dear *${memberName}*,`,
+    `Congratulations, ${memberName}! 🔥`,
     "",
-    "Congratulations and welcome to *WARRIORS GYM*! We are thrilled to have you train with us. Get ready to train, transform, and conquer your fitness goals! 💪",
+    "Your Warriors Gym membership is now ACTIVE.",
     "",
-    "📋 *YOUR MEMBERSHIP DETAILS:*",
-    `• *Member Name:* ${memberName}`,
-    `• *Phone Number:* ${phone}`,
-    `• *Active Plan:* ${planName}`,
-    `• *Plan Duration:* ${planDuration}`,
-    `• *Start Date:* ${startDate}`,
-    `• *End Date:* ${endDate}`,
+    `🏋️ Your Plan: ${planName}`,
+    `📅 Start Date: ${startDate}`,
+    `⏳ Valid Until: ${endDate}`,
     "",
-    "🔐 *MEMBER PORTAL LOGIN:*",
-    `• *Login ID:* ${phone}`,
-    `• *Website:* ${loginWebsite}`,
+    "🔐 YOUR LOGIN DETAILS",
     "",
-    "Log in to track your workouts, view your diet plans, check payment receipts, and stay updated.",
+    `ID: ${phone}`,
+    `Password: ${password}`,
     "",
-    "Train hard, stay consistent, and unleash the warrior within! 🔥",
+    "🌐 LOGIN TO YOUR WARRIORS GYM PORTAL:",
+    "https://warriors-gym-iota.vercel.app/",
     "",
-    "*WARRIORS GYM*",
+    "👉 Open the website",
+    '👉 Click "Join Warriors" / Login',
+    "👉 Enter your ID and Password",
+    "👉 Complete your profile",
+    "👉 Check your membership and workout plan",
+    "👉 Enjoy your Warriors Gym portal! 🚀",
+    "",
+    "If you have any problem while logging in, contact Warriors Gym.",
+    "",
+    "🔥 TRAIN HARD",
+    "💪 STAY CONSISTENT",
+    "🏆 BECOME A WARRIOR",
+    "",
+    "Welcome to WARRIORS GYM! ❤️",
   ];
 
   const message = lines.join("\n");
   return `https://wa.me/${recipientPhone}?text=${encodeURIComponent(message)}`;
 }
+
 
 function Brand({ compact = false }) {
   return (
@@ -1890,7 +1921,13 @@ function OwnerApp({ user, onLogout }) {
   };
 
   const createMember = async (memberData) => {
-    await api("/members", { method: "POST", body: JSON.stringify(memberData) });
+    if (memberData?.password && memberData?.phone) {
+      setMemberCreationPassword(memberData.phone, memberData.password);
+    }
+    const res = await api("/members", { method: "POST", body: JSON.stringify(memberData) });
+    if (res?.member?.id && memberData?.password) {
+      setMemberCreationPassword(res.member.id, memberData.password);
+    }
     await refresh();
     setNotice("Member created and saved in MongoDB.");
   };
@@ -1916,15 +1953,19 @@ function OwnerApp({ user, onLogout }) {
   };
 
   const sendWelcome = async (member) => {
+    const creationPwd = getMemberCreationPassword(member?.phone) || getMemberCreationPassword(member?.id);
     try {
-      const response = await api(`/members/${member.id}/send-welcome`, { method: "POST" });
+      const response = await api(`/members/${member.id}/send-welcome`, {
+        method: "POST",
+        body: JSON.stringify({ password: creationPwd || null }),
+      });
       if (response?.waUrl) {
         openWhatsAppUrl(response.waUrl);
       }
       setNotice(response.message || `WhatsApp welcome message prepared for ${member.name}. Press Send in WhatsApp to deliver.`);
       return response;
     } catch {
-      const waUrl = buildWelcomeWhatsAppUrl(member, data.plans);
+      const waUrl = buildWelcomeWhatsAppUrl(member, data.plans, creationPwd);
       openWhatsAppUrl(waUrl);
       setNotice(`WhatsApp opened with welcome message for ${member.name}. Press Send in WhatsApp to deliver.`);
     }
@@ -2374,7 +2415,8 @@ function MembersPage({
                     if (onSendWelcome) {
                       onSendWelcome(m);
                     } else {
-                      const waUrl = buildWelcomeWhatsAppUrl(m, plans);
+                      const creationPwd = getMemberCreationPassword(m.phone) || getMemberCreationPassword(m.id);
+                      const waUrl = buildWelcomeWhatsAppUrl(m, plans, creationPwd);
                       openWhatsAppUrl(waUrl);
                     }
                   }}

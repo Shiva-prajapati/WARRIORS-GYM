@@ -187,37 +187,46 @@ async function sendReminder({ member, subscription, plan, triggeredBy, baseUrl }
   };
 }
 
-function buildWelcomeMessage({ memberName, phone, planName, duration, startDate, endDate, loginWebsite }) {
-  const website = loginWebsite || 'https://warriors-gym-iota.vercel.app/';
+function buildWelcomeMessage({ memberName, phone, planName, startDate, endDate, password }) {
+  const pwdDisplay = password || '[As set during registration]';
   const lines = [
-    '🏋️ *WARRIORS GYM - WELCOME TO THE FAMILY* 🏋️',
+    '🎉 WELCOME TO WARRIORS GYM! 💪',
     '',
-    `Dear *${memberName}*,`,
+    `Congratulations, ${memberName}! 🔥`,
     '',
-    'Congratulations and welcome to *WARRIORS GYM*! We are thrilled to have you train with us. Get ready to train, transform, and conquer your fitness goals! 💪',
+    'Your Warriors Gym membership is now ACTIVE.',
     '',
-    '📋 *YOUR MEMBERSHIP DETAILS:*',
-    `• *Member Name:* ${memberName}`,
-    `• *Phone Number:* ${phone}`,
-    `• *Active Plan:* ${planName || 'No active plan'}`,
-    `• *Plan Duration:* ${duration || 'N/A'}`,
-    `• *Start Date:* ${startDate || 'N/A'}`,
-    `• *End Date:* ${endDate || 'N/A'}`,
+    `🏋️ Your Plan: ${planName || 'WARRIORS MEMBERSHIP'}`,
+    `📅 Start Date: ${startDate || 'N/A'}`,
+    `⏳ Valid Until: ${endDate || 'N/A'}`,
     '',
-    '🔐 *MEMBER PORTAL LOGIN:*',
-    `• *Login ID:* ${phone}`,
-    `• *Website:* ${website}`,
+    '🔐 YOUR LOGIN DETAILS',
     '',
-    'Log in to track your workouts, view your diet plans, check payment receipts, and stay updated.',
+    `ID: ${phone}`,
+    `Password: ${pwdDisplay}`,
     '',
-    'Train hard, stay consistent, and unleash the warrior within! 🔥',
+    '🌐 LOGIN TO YOUR WARRIORS GYM PORTAL:',
+    'https://warriors-gym-iota.vercel.app/',
     '',
-    '*WARRIORS GYM*',
+    '👉 Open the website',
+    '👉 Click "Join Warriors" / Login',
+    '👉 Enter your ID and Password',
+    '👉 Complete your profile',
+    '👉 Check your membership and workout plan',
+    '👉 Enjoy your Warriors Gym portal! 🚀',
+    '',
+    'If you have any problem while logging in, contact Warriors Gym.',
+    '',
+    '🔥 TRAIN HARD',
+    '💪 STAY CONSISTENT',
+    '🏆 BECOME A WARRIOR',
+    '',
+    'Welcome to WARRIORS GYM! ❤️',
   ];
   return lines.join('\n');
 }
 
-async function sendWelcome({ member, subscription, plan, triggeredBy }) {
+async function sendWelcome({ member, subscription, plan, password, triggeredBy }) {
   const memberName = member.name || 'Member';
   const recipientPhone = formatPhoneForWhatsApp(member.phone);
   if (!recipientPhone || recipientPhone.length < 10) {
@@ -229,12 +238,7 @@ async function sendWelcome({ member, subscription, plan, triggeredBy }) {
     resolvedPlan = await GymPlan.findById(subscription.planId).lean();
   }
 
-  const planName = resolvedPlan?.name || subscription?.planName || 'No active plan';
-  let duration = 'N/A';
-  if (resolvedPlan?.duration) {
-    const unit = (resolvedPlan.durationUnit || 'MONTHS').toLowerCase();
-    duration = `${resolvedPlan.duration} ${unit}`;
-  }
+  const planName = resolvedPlan?.name || subscription?.planName || 'WARRIORS MEMBERSHIP';
 
   const formatDate = (date) => {
     if (!date) return 'N/A';
@@ -253,16 +257,14 @@ async function sendWelcome({ member, subscription, plan, triggeredBy }) {
 
   const startDate = formatDate(subscription?.startDate);
   const endDate = formatDate(subscription?.endDate);
-  const loginWebsite = 'https://warriors-gym-iota.vercel.app/';
 
   const message = buildWelcomeMessage({
     memberName,
     phone: member.phone,
     planName,
-    duration,
     startDate,
     endDate,
-    loginWebsite,
+    password,
   });
 
   const waUrl = `https://wa.me/${recipientPhone}?text=${encodeURIComponent(message)}`;
@@ -270,14 +272,20 @@ async function sendWelcome({ member, subscription, plan, triggeredBy }) {
   await ReminderLog.create({
     memberId: String(member._id),
     recipientPhone,
-    message,
+    message: buildWelcomeMessage({
+      memberName,
+      phone: member.phone,
+      planName,
+      startDate,
+      endDate,
+      password: password ? '********' : null,
+    }),
     provider: 'WHATSAPP_WEB',
     status: 'PREPARED',
     providerResponse: {
       waUrl,
       type: 'WELCOME',
       planName,
-      duration,
       startDate,
       endDate,
     },
@@ -294,6 +302,7 @@ async function sendWelcome({ member, subscription, plan, triggeredBy }) {
     message: `WhatsApp welcome message prepared for ${memberName}. Press Send in WhatsApp to deliver.`,
   };
 }
+
 
 module.exports = {
   isConfigured,

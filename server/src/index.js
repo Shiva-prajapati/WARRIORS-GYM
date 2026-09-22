@@ -704,12 +704,14 @@ app.post('/api/members/:id/send-welcome', auth, ownerOnly, async (req, res) => {
 
   const subscription = await Subscription.findOne({ userId: String(member._id) }).lean();
   const plan = subscription ? await GymPlan.findById(subscription.planId).lean() : null;
+  const { password } = req.body || {};
 
   try {
     const result = await sendWelcome({
       member,
       subscription,
       plan,
+      password: typeof password === 'string' && password ? password : null,
       triggeredBy: String(req.user._id),
     });
     res.json(result);
