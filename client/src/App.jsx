@@ -20,7 +20,9 @@ import {
 import "./App.css";
 
 const rawApi = (import.meta.env.VITE_API_URL || "/api").trim().replace(/\/+$/, "");
-const API = rawApi.endsWith("/api") ? rawApi : (rawApi.startsWith("http") ? `${rawApi}/api` : "/api");
+const API = (typeof window !== "undefined" && window.location.hostname.includes("vercel.app"))
+  ? "/api"
+  : (rawApi.endsWith("/api") ? rawApi : (rawApi.startsWith("http") ? `${rawApi}/api` : "/api"));
 const money = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
