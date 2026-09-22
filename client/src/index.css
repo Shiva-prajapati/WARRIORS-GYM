@@ -1503,6 +1503,72 @@ h3 {
 .member-table .text-action:hover {
   color: #db321f;
 }
+
+/* Owner Dashboard Members Table Action Column & Buttons */
+.member-actions-col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+}
+.member-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  font: 9px/1.1 "DM Mono", monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  white-space: nowrap;
+  border-radius: 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.member-action-btn.view-btn {
+  background: #181715;
+  color: #ffffff;
+  border: 1px solid #3c3933;
+}
+.member-action-btn.view-btn:hover {
+  background: #262420;
+  border-color: #db321f;
+  color: #ffffff;
+}
+.member-action-btn.reminder-btn {
+  background: transparent;
+  color: #db321f;
+  border: 1px solid #db321f;
+}
+.member-action-btn.reminder-btn:hover {
+  background: #db321f;
+  color: #ffffff;
+}
+.member-action-btn.remove-btn {
+  background: #f7e2de;
+  color: #a33124;
+  border: 1px solid #f2bcba;
+}
+.member-action-btn.remove-btn:hover {
+  background: #db321f;
+  color: #ffffff;
+  border-color: #db321f;
+}
+.member-action-btn.whatsapp-btn {
+  background: #e8f5e9;
+  color: #1b5e20;
+  border: 1px solid #c8e6c9;
+}
+.member-action-btn.whatsapp-btn:hover {
+  background: #25d366;
+  color: #ffffff;
+  border-color: #25d366;
+}
+
 .member-table-photo {
   width: 34px;
   height: 34px;

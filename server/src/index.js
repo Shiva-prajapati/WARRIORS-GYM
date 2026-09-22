@@ -22,7 +22,8 @@ const {
   ReminderLog,
 } = require('./models');
 const { createOrder, verifyPayment, handleWebhook, markFailed } = require('./paymentService');
-const { sendReminder } = require('./whatsappService');
+const { sendReminder, sendWelcome } = require('./whatsappService');
+
 
 const clientUrl = process.env.CLIENT_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173');
 const requiredEnvironment = ['MONGODB_URI', 'JWT_SECRET'];
@@ -689,6 +690,27 @@ app.post('/api/members/:id/send-reminder', auth, ownerOnly, async (req, res) => 
       plan,
       triggeredBy: String(req.user._id),
       baseUrl,
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+app.post('/api/members/:id/send-welcome', auth, ownerOnly, async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid member ID' });
+  const member = await User.findOne({ _id: req.params.id, role: 'member' });
+  if (!member) return res.status(404).json({ message: 'Member not found' });
+
+  const subscription = await Subscription.findOne({ userId: String(member._id) }).lean();
+  const plan = subscription ? await GymPlan.findById(subscription.planId).lean() : null;
+
+  try {
+    const result = await sendWelcome({
+      member,
+      subscription,
+      plan,
+      triggeredBy: String(req.user._id),
     });
     res.json(result);
   } catch (error) {

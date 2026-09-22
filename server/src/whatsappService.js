@@ -187,9 +187,120 @@ async function sendReminder({ member, subscription, plan, triggeredBy, baseUrl }
   };
 }
 
+function buildWelcomeMessage({ memberName, phone, planName, duration, startDate, endDate, loginWebsite }) {
+  const website = loginWebsite || 'https://warriors-gym-iota.vercel.app/';
+  const lines = [
+    '🏋️ *WARRIORS GYM - WELCOME TO THE FAMILY* 🏋️',
+    '',
+    `Dear *${memberName}*,`,
+    '',
+    'Congratulations and welcome to *WARRIORS GYM*! We are thrilled to have you train with us. Get ready to train, transform, and conquer your fitness goals! 💪',
+    '',
+    '📋 *YOUR MEMBERSHIP DETAILS:*',
+    `• *Member Name:* ${memberName}`,
+    `• *Phone Number:* ${phone}`,
+    `• *Active Plan:* ${planName || 'No active plan'}`,
+    `• *Plan Duration:* ${duration || 'N/A'}`,
+    `• *Start Date:* ${startDate || 'N/A'}`,
+    `• *End Date:* ${endDate || 'N/A'}`,
+    '',
+    '🔐 *MEMBER PORTAL LOGIN:*',
+    `• *Login ID:* ${phone}`,
+    `• *Website:* ${website}`,
+    '',
+    'Log in to track your workouts, view your diet plans, check payment receipts, and stay updated.',
+    '',
+    'Train hard, stay consistent, and unleash the warrior within! 🔥',
+    '',
+    '*WARRIORS GYM*',
+  ];
+  return lines.join('\n');
+}
+
+async function sendWelcome({ member, subscription, plan, triggeredBy }) {
+  const memberName = member.name || 'Member';
+  const recipientPhone = formatPhoneForWhatsApp(member.phone);
+  if (!recipientPhone || recipientPhone.length < 10) {
+    throw new Error(`Member ${memberName} does not have a valid 10-digit mobile number for WhatsApp.`);
+  }
+
+  let resolvedPlan = plan;
+  if (!resolvedPlan && subscription?.planId) {
+    resolvedPlan = await GymPlan.findById(subscription.planId).lean();
+  }
+
+  const planName = resolvedPlan?.name || subscription?.planName || 'No active plan';
+  let duration = 'N/A';
+  if (resolvedPlan?.duration) {
+    const unit = (resolvedPlan.durationUnit || 'MONTHS').toLowerCase();
+    duration = `${resolvedPlan.duration} ${unit}`;
+  }
+
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    try {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return 'N/A';
+      return d.toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const startDate = formatDate(subscription?.startDate);
+  const endDate = formatDate(subscription?.endDate);
+  const loginWebsite = 'https://warriors-gym-iota.vercel.app/';
+
+  const message = buildWelcomeMessage({
+    memberName,
+    phone: member.phone,
+    planName,
+    duration,
+    startDate,
+    endDate,
+    loginWebsite,
+  });
+
+  const waUrl = `https://wa.me/${recipientPhone}?text=${encodeURIComponent(message)}`;
+
+  await ReminderLog.create({
+    memberId: String(member._id),
+    recipientPhone,
+    message,
+    provider: 'WHATSAPP_WEB',
+    status: 'PREPARED',
+    providerResponse: {
+      waUrl,
+      type: 'WELCOME',
+      planName,
+      duration,
+      startDate,
+      endDate,
+    },
+    triggeredBy: String(triggeredBy || member._id),
+  }).catch(() => {});
+
+  return {
+    success: true,
+    configured: true,
+    provider: 'WHATSAPP_WEB',
+    waUrl,
+    messageText: message,
+    recipientPhone,
+    message: `WhatsApp welcome message prepared for ${memberName}. Press Send in WhatsApp to deliver.`,
+  };
+}
+
 module.exports = {
   isConfigured,
   formatPhoneForWhatsApp,
   buildReminderMessage,
   sendReminder,
+  buildWelcomeMessage,
+  sendWelcome,
 };
+

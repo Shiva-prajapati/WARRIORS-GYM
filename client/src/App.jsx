@@ -54,6 +54,87 @@ async function api(path, options = {}) {
   if (!res.ok) throw new Error(data.message || "Something went wrong");
   return data;
 }
+
+const openWhatsAppUrl = (url) => {
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
+function formatPhoneForWhatsApp(phone) {
+  let cleaned = String(phone || "").replace(/[^0-9]/g, "");
+  if (cleaned.startsWith("0") && cleaned.length === 11) {
+    cleaned = cleaned.slice(1);
+  }
+  if (cleaned.length === 10) {
+    return `91${cleaned}`;
+  }
+  return cleaned;
+}
+
+function buildWelcomeWhatsAppUrl(member, plans = []) {
+  const memberName = member?.name || "Member";
+  const phone = member?.phone || "";
+  const recipientPhone = formatPhoneForWhatsApp(phone);
+
+  const sub = member?.membership;
+  let plan = sub?.plan;
+  if (!plan && sub?.planId && Array.isArray(plans)) {
+    plan = plans.find((p) => String(p.id) === String(sub.planId));
+  }
+
+  const planName = plan?.name || sub?.planName || "No active plan";
+  let planDuration = "N/A";
+  if (plan?.duration) {
+    const unit = (plan.durationUnit || "MONTHS").toLowerCase();
+    planDuration = `${plan.duration} ${unit}`;
+  }
+
+  const formatDate = (d) => {
+    if (!d) return "N/A";
+    const date = new Date(d);
+    return isNaN(date.getTime())
+      ? "N/A"
+      : date.toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
+  };
+
+  const startDate = formatDate(sub?.startDate);
+  const endDate = formatDate(sub?.endDate);
+  const loginWebsite = "https://warriors-gym-iota.vercel.app/";
+
+  const lines = [
+    "🏋️ *WARRIORS GYM - WELCOME TO THE FAMILY* 🏋️",
+    "",
+    `Dear *${memberName}*,`,
+    "",
+    "Congratulations and welcome to *WARRIORS GYM*! We are thrilled to have you train with us. Get ready to train, transform, and conquer your fitness goals! 💪",
+    "",
+    "📋 *YOUR MEMBERSHIP DETAILS:*",
+    `• *Member Name:* ${memberName}`,
+    `• *Phone Number:* ${phone}`,
+    `• *Active Plan:* ${planName}`,
+    `• *Plan Duration:* ${planDuration}`,
+    `• *Start Date:* ${startDate}`,
+    `• *End Date:* ${endDate}`,
+    "",
+    "🔐 *MEMBER PORTAL LOGIN:*",
+    `• *Login ID:* ${phone}`,
+    `• *Website:* ${loginWebsite}`,
+    "",
+    "Log in to track your workouts, view your diet plans, check payment receipts, and stay updated.",
+    "",
+    "Train hard, stay consistent, and unleash the warrior within! 🔥",
+    "",
+    "*WARRIORS GYM*",
+  ];
+
+  const message = lines.join("\n");
+  return `https://wa.me/${recipientPhone}?text=${encodeURIComponent(message)}`;
+}
+
 function Brand({ compact = false }) {
   return (
     <div className={`brand ${compact ? "brand-compact" : ""}`}>
@@ -1834,6 +1915,21 @@ function OwnerApp({ user, onLogout }) {
     }
   };
 
+  const sendWelcome = async (member) => {
+    try {
+      const response = await api(`/members/${member.id}/send-welcome`, { method: "POST" });
+      if (response?.waUrl) {
+        openWhatsAppUrl(response.waUrl);
+      }
+      setNotice(response.message || `WhatsApp welcome message prepared for ${member.name}. Press Send in WhatsApp to deliver.`);
+      return response;
+    } catch {
+      const waUrl = buildWelcomeWhatsAppUrl(member, data.plans);
+      openWhatsAppUrl(waUrl);
+      setNotice(`WhatsApp opened with welcome message for ${member.name}. Press Send in WhatsApp to deliver.`);
+    }
+  };
+
   const recordCashPayment = async (memberId, planId, startDate, endDate) => {
     await api(`/members/${memberId}/subscription/cash`, {
       method: "POST",
@@ -1854,12 +1950,13 @@ function OwnerApp({ user, onLogout }) {
   };
 
 
+
   const markNotificationRead = async (id) => {
     try {
       await api(`/admin/notifications/${id}/read`, { method: "PUT" });
       await refresh();
     } catch (err) {
-      console.error(err);
+      setNotice(err.message);
     }
   };
 
@@ -1897,6 +1994,7 @@ function OwnerApp({ user, onLogout }) {
           onView={viewMember}
           onCreate={createMember}
           onSendReminder={sendReminder}
+          onSendWelcome={sendWelcome}
           onRecordCashPayment={recordCashPayment}
           onSaveWorkoutPlan={saveWorkoutPlan}
           selectedMember={selectedMember}
@@ -2029,6 +2127,7 @@ function MembersPage({
   onView,
   onCreate,
   onSendReminder,
+  onSendWelcome,
   onRecordCashPayment,
   onSaveWorkoutPlan,
   selectedMember,
@@ -2201,7 +2300,7 @@ function MembersPage({
         </div>
 
         <div className="member-table">
-          <div className="table-head" style={{ gridTemplateColumns: "1.4fr 0.8fr 1fr 1.2fr 0.8fr 0.9fr 1.3fr" }}>
+          <div className="table-head" style={{ gridTemplateColumns: "1.4fr 0.8fr 1fr 1.2fr 0.8fr 0.9fr 1.4fr" }}>
             <span>MEMBER</span>
             <span>EXPERIENCE</span>
             <span>PLAN</span>
@@ -2212,7 +2311,7 @@ function MembersPage({
           </div>
 
           {visibleMembers.map((m) => (
-            <div className="table-row" key={m.id} style={{ gridTemplateColumns: "1.4fr 0.8fr 1fr 1.2fr 0.8fr 0.9fr 1.3fr" }}>
+            <div className="table-row" key={m.id} style={{ gridTemplateColumns: "1.4fr 0.8fr 1fr 1.2fr 0.8fr 0.9fr 1.4fr" }}>
               <div className="table-person">
                 {m.profilePicture ? (
                   <img
@@ -2243,25 +2342,45 @@ function MembersPage({
                   ? `${m.latestPayment.status} (${m.latestPayment.paymentMethod || "ONLINE"})`
                   : "–"}
               </span>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                <button className="view-member-btn" onClick={() => onView?.(m)} title="View member details">
+              <div className="member-actions-col">
+                <button
+                  type="button"
+                  className="member-action-btn view-btn"
+                  onClick={() => onView?.(m)}
+                  title="View member details"
+                >
                   VIEW
                 </button>
                 <button
-                  className="text-action"
-                  style={{ color: "#db321f" }}
+                  type="button"
+                  className="member-action-btn reminder-btn"
                   onClick={() => onSendReminder?.(m.id)}
                   title="Send WhatsApp reminder"
                 >
-                  Reminder
+                  REMINDER
                 </button>
                 <button
                   type="button"
-                  className="remove-member"
+                  className="member-action-btn remove-btn"
                   onClick={() => setMemberToDelete(m)}
                   title="Permanently remove member"
                 >
-                  <X size={13} /> Remove
+                  <X size={11} /> REMOVE
+                </button>
+                <button
+                  type="button"
+                  className="member-action-btn whatsapp-btn"
+                  onClick={() => {
+                    if (onSendWelcome) {
+                      onSendWelcome(m);
+                    } else {
+                      const waUrl = buildWelcomeWhatsAppUrl(m, plans);
+                      openWhatsAppUrl(waUrl);
+                    }
+                  }}
+                  title="Send Welcome WhatsApp message"
+                >
+                  WELCOME WHATSAPP
                 </button>
               </div>
             </div>
