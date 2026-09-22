@@ -45,6 +45,7 @@ const isOriginAllowed = (origin) => {
       host === 'localhost' ||
       host === '127.0.0.1' ||
       host.endsWith('.vercel.app') ||
+      host.endsWith('.onrender.com') ||
       host.startsWith('192.168.') ||
       host.startsWith('10.') ||
       host.startsWith('172.') ||
