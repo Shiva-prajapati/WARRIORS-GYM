@@ -77,6 +77,41 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json', limit:
 });
 app.use(express.json({ limit: '5mb' }));
 
+let isConnecting = false;
+let lastDbError = null;
+async function connectDb() {
+  if (mongoose.connection.readyState === 1) return;
+  if (!process.env.MONGODB_URI) {
+    lastDbError = new Error('MONGODB_URI is not set in environment variables');
+    console.warn(lastDbError.message);
+    return;
+  }
+  if (isConnecting) return;
+  isConnecting = true;
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8_000 });
+    lastDbError = null;
+    console.log('MongoDB connected');
+  } catch (error) {
+    lastDbError = error;
+    console.warn('MongoDB connection failed:', error.message);
+  } finally {
+    isConnecting = false;
+  }
+}
+
+// Auto-connect middleware so serverless / Render auto-connects to MongoDB on request
+app.use(async (_req, _res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await connectDb();
+    } catch (err) {
+      console.warn('Database auto-connect attempt failed:', err.message);
+    }
+  }
+  next();
+});
+
 const requireMongo = (_, res, next) => mongoose.connection.readyState === 1
   ? next()
   : res.status(503).json({ message: 'Database unavailable' });
@@ -281,7 +316,18 @@ function explicitOwnerSetup(req, res, next) {
   next();
 }
 
-app.get('/api/health', (_, res) => res.json({ ok: mongoose.connection.readyState === 1, service: 'warriors-gym-api' }));
+app.get('/api/health', async (_, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    await connectDb().catch(() => {});
+  }
+  res.json({
+    ok: mongoose.connection.readyState === 1,
+    service: 'warriors-gym-api',
+    hasMongoUri: Boolean(process.env.MONGODB_URI),
+    mongoState: mongoose.connection.readyState === 1 ? 'CONNECTED' : (mongoose.connection.readyState === 2 ? 'CONNECTING' : 'DISCONNECTED'),
+    dbError: lastDbError ? lastDbError.message : null,
+  });
+});
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   const { name, phone, password, email, village, address, profilePicture, dateOfBirth, gender, experience } = req.body || {};
   if (!validateString(name, 2, 100) || !validPhone(phone) || !validPassword(password)) return res.status(400).json({ message: 'Name, phone and password are required and valid' });
@@ -1060,38 +1106,6 @@ app.get('/api/admin/dashboard', auth, ownerOnly, async (req, res) => {
   });
 });
 app.use((error, _, res, __) => { console.error('Request failed:', error.message); res.status(500).json({ message: 'Server error' }); });
-
-let isConnected = false;
-let isConnecting = false;
-async function connectDb() {
-  if (mongoose.connection.readyState === 1) return;
-  if (!process.env.MONGODB_URI) {
-    console.warn('MONGODB_URI is not set');
-    return;
-  }
-  if (isConnecting) return;
-  isConnecting = true;
-  try {
-    await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5_000 });
-    isConnected = true;
-    console.log('MongoDB connected');
-  } catch (error) {
-    console.warn('MongoDB connection failed:', error.message);
-  } finally {
-    isConnecting = false;
-  }
-}
-
-// Auto-connect middleware for serverless invocations
-app.use(async (req, res, next) => {
-  if (req.path === '/api/health') return next();
-  try {
-    await connectDb();
-  } catch (err) {
-    console.warn('Database auto-connect attempt failed:', err.message);
-  }
-  next();
-});
 
 if (require.main === module) {
   app.listen(PORT, () => {
