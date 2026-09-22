@@ -571,9 +571,10 @@ function MemberApp({ user, onLogout, initialPage = "dashboard", initialPlanId = 
         body: JSON.stringify({ planId }),
       });
       if (!window.Razorpay) throw new Error("Payment checkout is unavailable. Please check your internet connection.");
-      if (!order.keyId) throw new Error("Razorpay is not configured (missing key ID in environment).");
+      const razorpayKey = order.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+      if (!razorpayKey) throw new Error("Razorpay is not configured (missing key ID in environment).");
       checkout = new window.Razorpay({
-        key: order.keyId,
+        key: razorpayKey,
         amount: order.amount,
         currency: order.currency,
         order_id: order.orderId,
