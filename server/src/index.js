@@ -3,7 +3,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
+const path = require('path');
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
@@ -22,16 +24,17 @@ const {
 const { createOrder, verifyPayment, handleWebhook } = require('./paymentService');
 const { sendReminder } = require('./whatsappService');
 
-const requiredEnvironment = ['MONGODB_URI', 'JWT_SECRET', 'CLIENT_URL'];
+const clientUrl = process.env.CLIENT_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173');
+const requiredEnvironment = ['MONGODB_URI', 'JWT_SECRET'];
 const missingEnvironment = requiredEnvironment.filter((name) => !process.env[name]);
 if (missingEnvironment.length) {
-  throw new Error(`Missing required environment variables: ${missingEnvironment.join(', ')}`);
+  console.warn(`Warning: Missing recommended environment variables: ${missingEnvironment.join(', ')}`);
 }
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
-const JWT_SECRET = process.env.JWT_SECRET;
-const allowedOrigins = new Set([process.env.CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173']);
+const JWT_SECRET = process.env.JWT_SECRET || 'warriors_gym_auth_secret_fallback';
+const allowedOrigins = new Set([clientUrl, 'http://localhost:5173', 'http://127.0.0.1:5173']);
 const isOriginAllowed = (origin) => {
   if (!origin) return true;
   if (allowedOrigins.has(origin)) return true;
@@ -41,6 +44,7 @@ const isOriginAllowed = (origin) => {
     if (
       host === 'localhost' ||
       host === '127.0.0.1' ||
+      host.endsWith('.vercel.app') ||
       host.startsWith('192.168.') ||
       host.startsWith('10.') ||
       host.startsWith('172.') ||
@@ -1056,20 +1060,43 @@ app.get('/api/admin/dashboard', auth, ownerOnly, async (req, res) => {
 });
 app.use((error, _, res, __) => { console.error('Request failed:', error.message); res.status(500).json({ message: 'Server error' }); });
 
-let retryTimer = null;
+let isConnected = false;
+let isConnecting = false;
 async function connectDb() {
+  if (mongoose.connection.readyState === 1) return;
+  if (!process.env.MONGODB_URI) {
+    console.warn('MONGODB_URI is not set');
+    return;
+  }
+  if (isConnecting) return;
+  isConnecting = true;
   try {
     await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5_000 });
+    isConnected = true;
     console.log('MongoDB connected');
   } catch (error) {
     console.warn('MongoDB connection failed:', error.message);
-    console.warn(`Server is running at http://localhost:${PORT}, retrying database connection in 10s...`);
-    clearTimeout(retryTimer);
-    retryTimer = setTimeout(connectDb, 10_000);
+  } finally {
+    isConnecting = false;
   }
 }
 
-app.listen(PORT, () => {
-  console.log(`Warriors Gym API running on http://localhost:${PORT}`);
-  connectDb();
+// Auto-connect middleware for serverless invocations
+app.use(async (req, res, next) => {
+  if (req.path === '/api/health') return next();
+  try {
+    await connectDb();
+  } catch (err) {
+    console.warn('Database auto-connect attempt failed:', err.message);
+  }
+  next();
 });
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Warriors Gym API running on http://localhost:${PORT}`);
+    connectDb().catch((e) => console.warn(e.message));
+  });
+}
+
+module.exports = app;

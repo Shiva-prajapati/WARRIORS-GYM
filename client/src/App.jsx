@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import "./App.css";
 
-const API = "/api";
+const API = import.meta.env.VITE_API_URL || "/api";
 const money = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
