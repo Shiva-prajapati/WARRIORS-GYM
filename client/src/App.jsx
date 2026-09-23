@@ -997,11 +997,7 @@ function MembershipPage({ plans, membership, days, onPurchase, initialPlanId = n
               </div>
             )}
             <Button className="payment-submit" disabled={busy}>
-              {busy
-                ? "Opening secure checkout..."
-                : membership?.status === "ACTIVE"
-                  ? "Renew with this plan"
-                  : "Subscribe now"}{" "}
+              {busy ? "Opening secure checkout..." : "Subscribe Now / Pay Now"}{" "}
               <BadgeCheck size={16} />
             </Button>
           </form>
@@ -2904,7 +2900,7 @@ export default function App() {
             setUser(res.user);
             setView("member");
             setInitialPage("membership");
-            if (res.planId) setInitialPlanId(res.planId);
+            setInitialPlanId(null);
             window.history.replaceState({}, document.title, window.location.pathname);
           }
         })

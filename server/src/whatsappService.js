@@ -56,7 +56,7 @@ function buildReminderMessage({ memberName, planName, expiryDate, isExpired, pay
   }
 
   lines.push('');
-  lines.push('\uD83D\uDCB3 Renew Online:');
+  lines.push('Choose your plan and pay securely:');
   lines.push(resolvedPaymentLink);
   lines.push('');
   lines.push('Once your payment is verified, your membership will be renewed.');
@@ -96,61 +96,21 @@ async function sendReminder({ member, subscription, plan, triggeredBy, baseUrl }
     ? new Date(subscription.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
 
-  // Sign a secure 14-day renewal JWT for direct authenticated renewal
+  // Sign a secure 14-day renewal JWT for direct authenticated renewal (allows selecting ANY active plan)
   const renewalToken = jwt.sign(
     {
       userId: String(member._id),
-      planId: targetPlanId,
       action: 'renew',
     },
     process.env.JWT_SECRET,
     { expiresIn: '14d' }
   );
 
-  const cleanBaseUrl = String(baseUrl || process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
+  const defaultClientUrl = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://warriors-gym-iota.vercel.app' : 'http://localhost:5173');
+  const cleanBaseUrl = String(baseUrl || defaultClientUrl).replace(/\/+$/, '');
   const directRenewalUrl = `${cleanBaseUrl}/?renew=${encodeURIComponent(renewalToken)}`;
-
-  const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
-  const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
-
-  let paymentLink = null;
-  let razorpayPaymentLinkId = null;
-
-  if (keyId && keySecret && resolvedPlan && Number(resolvedPlan.price) > 0) {
-    try {
-      const { getRazorpayClient } = require('./paymentService');
-      const rzp = getRazorpayClient();
-      const plink = await rzp.paymentLink.create({
-        amount: Math.round(Number(resolvedPlan.price) * 100),
-        currency: resolvedPlan.currency || 'INR',
-        accept_partial: false,
-        description: `Warriors Gym - ${planName} Renewal`,
-        customer: {
-          name: memberName,
-          contact: recipientPhone,
-        },
-        notify: { sms: false, email: false },
-        reminder_enable: false,
-        notes: {
-          userId: String(member._id),
-          planId: String(targetPlanId),
-        },
-        callback_url: directRenewalUrl,
-        callback_method: 'get',
-      });
-      if (plink && plink.short_url) {
-        paymentLink = plink.short_url;
-        razorpayPaymentLinkId = plink.id;
-      }
-    } catch (err) {
-      console.warn('Razorpay payment link API unavailable, using renewal checkout URL:', err.message);
-      paymentLink = directRenewalUrl;
-    }
-  }
-
-  if (!paymentLink) {
-    paymentLink = directRenewalUrl;
-  }
+  const paymentLink = directRenewalUrl;
+  const razorpayPaymentLinkId = null;
 
   const message = buildReminderMessage({ memberName, planName, expiryDate, isExpired, paymentLink, activePlans });
   const waUrl = `https://wa.me/${recipientPhone}?text=${encodeURIComponent(message)}`;
