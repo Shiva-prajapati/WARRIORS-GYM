@@ -21,49 +21,46 @@ function formatINR(amount) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
 }
 
-function buildReminderMessage({ memberName, planName, expiryDate, isExpired, paymentLink, activePlans = [] }) {
-  const planPrefix = planName || 'Warriors Gym';
-  const expiryLine = expiryDate
-    ? (isExpired
-        ? `Your ${planPrefix} membership expired on ${expiryDate}.`
-        : `Your ${planPrefix} membership is expiring on ${expiryDate}.`)
-    : `Your ${planPrefix} membership is expiring soon.`;
+function getPlanEmoji(name, index) {
+  const lower = String(name || '').toLowerCase();
+  if (lower.includes('beginner')) return '💪';
+  if (lower.includes('advance')) return '🔥';
+  if (lower.includes('high')) return '⚡';
+  if (lower.includes('pro')) return '👑';
+  const fallbacks = ['💪', '🔥', '⚡', '👑', '🏋️', '⭐', '🥇', '🚀'];
+  return fallbacks[index % fallbacks.length];
+}
 
-  const resolvedPaymentLink = paymentLink || '';
-
-  const numberEmoji = ['1\uFE0F\u20E3', '2\uFE0F\u20E3', '3\uFE0F\u20E3', '4\uFE0F\u20E3', '5\uFE0F\u20E3', '6\uFE0F\u20E3', '7\uFE0F\u20E3', '8\uFE0F\u20E3', '9\uFE0F\u20E3', '\uD83D\uDD1F'];
-  const planLines = activePlans.length > 0
-    ? activePlans.map((p, i) => `${numberEmoji[i] || `${i + 1}.`} ${p.name} \u2014 ${formatINR(p.price)}`)
-    : [];
+function buildReminderMessage({ memberName, planName, expiryDate, isExpired, activePlans = [] }) {
+  const statusLine = isExpired
+    ? 'Your membership has expired.'
+    : 'Your membership is ending soon.';
 
   const lines = [
-    '\uD83C\uDFC6 WARRIORS GYM',
+    '🏋️ WARRIORS GYM — MEMBERSHIP RENEWAL',
     '',
-    'MEMBERSHIP RENEWAL REMINDER',
+    `Hello ${memberName} 👋`,
     '',
-    `Hi ${memberName},`,
+    statusLine,
     '',
-    expiryLine,
+    `📅 Current Plan: ${planName || 'Warriors Gym'}`,
+    `⏳ Valid Until: ${expiryDate || 'N/A'}`,
     '',
-    "Don't stop your progress. \uD83D\uDCAA",
+    'Choose any active plan:',
   ];
 
-  if (planLines.length > 0) {
-    lines.push('');
-    lines.push('Choose a plan to continue your training:');
-    lines.push('');
-    lines.push(...planLines);
+  if (activePlans.length > 0) {
+    activePlans.forEach((p, index) => {
+      lines.push('');
+      const emoji = getPlanEmoji(p.name, index);
+      const planUpper = String(p.name || '').toUpperCase();
+      lines.push(`${emoji} ${planUpper} — ${formatINR(p.price)}`);
+      lines.push(`👉 Pay ${p.name}: ${p.paymentLink || ''}`);
+    });
   }
 
   lines.push('');
-  lines.push('Choose your plan and pay securely:');
-  lines.push(resolvedPaymentLink);
-  lines.push('');
-  lines.push('Once your payment is verified, your membership will be renewed.');
-  lines.push('');
-  lines.push('Train \u2022 Transform \u2022 Conquer');
-  lines.push('');
-  lines.push('WARRIORS GYM');
+  lines.push('💳 Secure payment powered by Razorpay.');
 
   return lines.join('\n');
 }
@@ -96,23 +93,34 @@ async function sendReminder({ member, subscription, plan, triggeredBy, baseUrl }
     ? new Date(subscription.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
 
-  // Sign a secure 14-day renewal JWT for direct authenticated renewal (allows selecting ANY active plan)
-  const renewalToken = jwt.sign(
-    {
-      userId: String(member._id),
-      action: 'renew',
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: '14d' }
-  );
-
   const defaultClientUrl = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://warriors-gym-iota.vercel.app' : 'http://localhost:5173');
   const cleanBaseUrl = String(baseUrl || defaultClientUrl).replace(/\/+$/, '');
-  const directRenewalUrl = `${cleanBaseUrl}/?renew=${encodeURIComponent(renewalToken)}`;
-  const paymentLink = directRenewalUrl;
-  const razorpayPaymentLinkId = null;
 
-  const message = buildReminderMessage({ memberName, planName, expiryDate, isExpired, paymentLink, activePlans });
+  // Generate dedicated authenticated renewal JWT link for EACH active MongoDB plan
+  const activePlansWithLinks = activePlans.map((p) => {
+    const planToken = jwt.sign(
+      {
+        userId: String(member._id),
+        planId: String(p._id),
+        action: 'renew',
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '14d' }
+    );
+    const paymentLink = `${cleanBaseUrl}/?renew=${encodeURIComponent(planToken)}`;
+    return {
+      ...p,
+      paymentLink,
+    };
+  });
+
+  const message = buildReminderMessage({
+    memberName,
+    planName,
+    expiryDate,
+    isExpired,
+    activePlans: activePlansWithLinks,
+  });
   const waUrl = `https://wa.me/${recipientPhone}?text=${encodeURIComponent(message)}`;
 
   await ReminderLog.create({
@@ -123,12 +131,8 @@ async function sendReminder({ member, subscription, plan, triggeredBy, baseUrl }
     status: 'PREPARED',
     providerResponse: {
       waUrl,
-      paymentLink,
-      directRenewalUrl,
-      razorpayPaymentLinkId,
-      planName,
-      amount: resolvedPlan?.price || null,
-      activePlanCount: activePlans.length,
+      activePlanCount: activePlansWithLinks.length,
+      planLinks: activePlansWithLinks.map((p) => ({ planName: p.name, price: p.price, url: p.paymentLink })),
     },
     triggeredBy: String(triggeredBy),
   });
@@ -138,8 +142,6 @@ async function sendReminder({ member, subscription, plan, triggeredBy, baseUrl }
     configured: true,
     provider: 'WHATSAPP_WEB',
     waUrl,
-    paymentLink,
-    directRenewalUrl,
     messageText: message,
     recipientPhone,
     planName,

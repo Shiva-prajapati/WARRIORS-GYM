@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -914,11 +914,26 @@ function MembershipPage({ plans, membership, days, onPurchase, initialPlanId = n
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [paymentError, setPaymentError] = useState("");
   const [busy, setBusy] = useState(false);
+  const autoTriggeredRef = useRef(false);
 
   useEffect(() => {
-    if (initialPlanId && Array.isArray(plans) && plans.length > 0 && !selectedPlan) {
+    if (initialPlanId && Array.isArray(plans) && plans.length > 0 && !autoTriggeredRef.current) {
       const matched = plans.find((p) => p.id === initialPlanId);
-      if (matched) setSelectedPlan(matched);
+      if (matched) {
+        setSelectedPlan(matched);
+        autoTriggeredRef.current = true;
+        setBusy(true);
+        onPurchase(matched.id)
+          .then((opened) => {
+            if (opened) setSelectedPlan(null);
+          })
+          .catch((err) => {
+            setPaymentError(err.message);
+          })
+          .finally(() => {
+            setBusy(false);
+          });
+      }
     }
   }, [initialPlanId, plans]);
   const confirmPayment = async (event) => {
@@ -2900,7 +2915,7 @@ export default function App() {
             setUser(res.user);
             setView("member");
             setInitialPage("membership");
-            setInitialPlanId(null);
+            if (res.planId) setInitialPlanId(res.planId);
             window.history.replaceState({}, document.title, window.location.pathname);
           }
         })
