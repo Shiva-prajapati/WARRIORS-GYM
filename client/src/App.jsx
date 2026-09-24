@@ -20,7 +20,7 @@ import {
 import "./App.css";
 
 const rawApi = (import.meta.env.VITE_API_URL || "/api").trim().replace(/\/+$/, "");
-const API = (typeof window !== "undefined" && window.location.hostname.includes("vercel.app"))
+const API = (typeof window !== "undefined" && (window.location.hostname.includes("warriorsgym.me") || window.location.hostname.includes("vercel.app")))
   ? "/api"
   : (rawApi.endsWith("/api") ? rawApi : (rawApi.startsWith("http") ? `${rawApi}/api` : "/api"));
 const money = new Intl.NumberFormat("en-IN", {
@@ -143,7 +143,7 @@ function buildWelcomeWhatsAppUrl(member, plans = [], customPassword = null) {
     `Password: ${password}`,
     "",
     "🌐 LOGIN TO YOUR WARRIORS GYM PORTAL:",
-    "https://warriors-gym-iota.vercel.app/",
+    "https://warriorsgym.me",
     "",
     "👉 Open the website",
     '👉 Click "Join Warriors" / Login',

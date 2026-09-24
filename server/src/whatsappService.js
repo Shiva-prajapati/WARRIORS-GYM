@@ -93,8 +93,11 @@ async function sendReminder({ member, subscription, plan, triggeredBy, baseUrl }
     ? new Date(subscription.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
 
-  const defaultClientUrl = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://warriors-gym-iota.vercel.app' : 'http://localhost:5173');
-  const cleanBaseUrl = String(baseUrl || defaultClientUrl).replace(/\/+$/, '');
+  const defaultClientUrl = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://warriorsgym.me' : 'http://localhost:5173');
+  let cleanBaseUrl = String(baseUrl || defaultClientUrl).replace(/\/+$/, '');
+  if (cleanBaseUrl.includes('warriors-gym-iota.vercel.app')) {
+    cleanBaseUrl = 'https://warriorsgym.me';
+  }
 
   // Generate dedicated authenticated renewal JWT link for EACH active MongoDB plan
   const activePlansWithLinks = activePlans.map((p) => {
@@ -168,7 +171,7 @@ function buildWelcomeMessage({ memberName, phone, planName, startDate, endDate, 
     `Password: ${pwdDisplay}`,
     '',
     '🌐 LOGIN TO YOUR WARRIORS GYM PORTAL:',
-    'https://warriors-gym-iota.vercel.app/',
+    'https://warriorsgym.me',
     '',
     '👉 Open the website',
     '👉 Click "Join Warriors" / Login',

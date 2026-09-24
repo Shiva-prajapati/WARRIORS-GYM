@@ -36,7 +36,7 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = Number(process.env.PORT || 4000);
 const JWT_SECRET = process.env.JWT_SECRET || 'warriors_gym_auth_secret_fallback';
-const allowedOrigins = new Set([clientUrl, 'http://localhost:5173', 'http://127.0.0.1:5173']);
+const allowedOrigins = new Set([clientUrl, 'https://warriorsgym.me', 'http://localhost:5173', 'http://127.0.0.1:5173']);
 const isOriginAllowed = (origin) => {
   if (!origin) return true;
   if (allowedOrigins.has(origin)) return true;
@@ -46,6 +46,8 @@ const isOriginAllowed = (origin) => {
     if (
       host === 'localhost' ||
       host === '127.0.0.1' ||
+      host === 'warriorsgym.me' ||
+      host.endsWith('.warriorsgym.me') ||
       host.endsWith('.vercel.app') ||
       host.endsWith('.onrender.com') ||
       host.startsWith('192.168.') ||
@@ -675,11 +677,14 @@ app.post('/api/members/:id/send-reminder', auth, ownerOnly, async (req, res) => 
   const plan = subscription ? await GymPlan.findById(subscription.planId).lean() : null;
 
   const clientOrigin = req.headers.origin || req.headers.referer;
-  let baseUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  let baseUrl = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://warriorsgym.me' : 'http://localhost:5173');
   if (clientOrigin) {
     try {
       const parsed = new URL(clientOrigin);
       baseUrl = `${parsed.protocol}//${parsed.host}`;
+      if (baseUrl.includes('warriors-gym-iota.vercel.app')) {
+        baseUrl = 'https://warriorsgym.me';
+      }
     } catch {}
   }
 
@@ -732,11 +737,14 @@ app.post('/api/admin/notifications/:id/send-reminder', auth, ownerOnly, async (r
   const plan = subscription ? await GymPlan.findById(subscription.planId).lean() : null;
 
   const clientOrigin = req.headers.origin || req.headers.referer;
-  let baseUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  let baseUrl = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://warriorsgym.me' : 'http://localhost:5173');
   if (clientOrigin) {
     try {
       const parsed = new URL(clientOrigin);
       baseUrl = `${parsed.protocol}//${parsed.host}`;
+      if (baseUrl.includes('warriors-gym-iota.vercel.app')) {
+        baseUrl = 'https://warriorsgym.me';
+      }
     } catch {}
   }
 
