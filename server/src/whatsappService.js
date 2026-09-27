@@ -65,7 +65,7 @@ function buildReminderMessage({ memberName, planName, expiryDate, isExpired, act
   return lines.join('\n');
 }
 
-async function sendReminder({ member, subscription, plan, triggeredBy, baseUrl }) {
+async function sendReminder({ member, subscription, plan, activePlans: providedActivePlans, triggeredBy, baseUrl }) {
   const memberName = member.name || 'Member';
 
   const recipientPhone = formatPhoneForWhatsApp(member.phone);
@@ -82,8 +82,8 @@ async function sendReminder({ member, subscription, plan, triggeredBy, baseUrl }
     resolvedPlan = await GymPlan.findOne({ active: true }).sort({ price: 1 }).lean();
   }
 
-  // Fetch all active plans from MongoDB for the plan list in the message
-  const activePlans = await GymPlan.find({ active: true }).sort({ price: 1 }).lean();
+  // Use provided active plans or fetch from MongoDB
+  const activePlans = providedActivePlans || (await GymPlan.find({ active: true }).sort({ price: 1 }).lean());
 
   const planName = resolvedPlan?.name || subscription?.planName || 'Warriors Gym';
   const targetPlanId = resolvedPlan ? String(resolvedPlan._id || resolvedPlan.id) : (subscription ? String(subscription.planId) : undefined);
@@ -126,7 +126,7 @@ async function sendReminder({ member, subscription, plan, triggeredBy, baseUrl }
   });
   const waUrl = `https://wa.me/${recipientPhone}?text=${encodeURIComponent(message)}`;
 
-  await ReminderLog.create({
+  ReminderLog.create({
     memberId: String(member._id),
     recipientPhone,
     message,
@@ -138,7 +138,7 @@ async function sendReminder({ member, subscription, plan, triggeredBy, baseUrl }
       planLinks: activePlansWithLinks.map((p) => ({ planName: p.name, price: p.price, url: p.paymentLink })),
     },
     triggeredBy: String(triggeredBy),
-  });
+  }).catch((err) => console.error('ReminderLog error:', err.message));
 
   return {
     success: true,

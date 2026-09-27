@@ -32,18 +32,19 @@ async function createOrder({ userId, plan }) {
     throw new Error('Invalid payment request');
   }
 
-  // Supersede any previous uncompleted pending payments so member is never locked out
-  await Payment.updateMany(
-    { userId, status: 'PENDING' },
-    { $set: { status: 'CANCELLED', failureReason: 'Superseded by new checkout attempt' } }
-  );
-
-  const order = await client.orders.create({
-    amount: plan.price * 100, // in paise
-    currency: 'INR',
-    receipt: `gym_${userId.slice(0, 14)}_${Date.now()}`.slice(0, 40),
-    notes: { userId, planId: String(plan.id || plan._id) },
-  });
+  // Supersede previous uncompleted pending payments in parallel with order creation
+  const [_, order] = await Promise.all([
+    Payment.updateMany(
+      { userId, status: 'PENDING' },
+      { $set: { status: 'CANCELLED', failureReason: 'Superseded by new checkout attempt' } }
+    ),
+    client.orders.create({
+      amount: plan.price * 100, // in paise
+      currency: 'INR',
+      receipt: `gym_${userId.slice(0, 14)}_${Date.now()}`.slice(0, 40),
+      notes: { userId, planId: String(plan.id || plan._id) },
+    }),
+  ]);
 
   const payment = await Payment.create({
     userId,

@@ -226,19 +226,42 @@ function calculateSubscriptionDates(duration, durationUnit = 'MONTHS', fromDate 
   return { startDate, endDate };
 }
 
-async function generateExpiryNotifications(ownerId) {
+let lastExpiryCheck = 0;
+let isGeneratingExpiry = false;
+
+async function generateExpiryNotifications(ownerId, force = false) {
+  const nowMs = Date.now();
+  if (!force && (nowMs - lastExpiryCheck < 45000 || isGeneratingExpiry)) {
+    return;
+  }
+  isGeneratingExpiry = true;
+  lastExpiryCheck = nowMs;
+
   try {
-    const activeSubs = await Subscription.find({ status: { $in: ['ACTIVE', 'EXPIRED'] } });
+    const activeSubs = await Subscription.find({ status: { $in: ['ACTIVE', 'EXPIRED'] } }).lean();
+    if (!activeSubs.length) return;
+
+    const memberIds = [...new Set(activeSubs.map((s) => s.userId).filter(Boolean))];
+    const planIds = [...new Set(activeSubs.map((s) => s.planId).filter(Boolean))];
+
+    const [members, plans] = await Promise.all([
+      User.find({ _id: { $in: memberIds } }).lean(),
+      GymPlan.find({ _id: { $in: planIds } }).lean(),
+    ]);
+
+    const memberMap = new Map(members.map((m) => [String(m._id), m]));
+    const planMap = new Map(plans.map((p) => [String(p._id), p]));
     const now = new Date();
 
+    const tasks = [];
+
     for (const sub of activeSubs) {
-      const member = await User.findById(sub.userId);
+      const member = memberMap.get(String(sub.userId));
       if (!member) {
-        // Clean up orphaned notifications if member no longer exists
-        await Notification.deleteMany({ subscriptionId: String(sub._id) });
+        tasks.push(Notification.deleteMany({ subscriptionId: String(sub._id) }));
         continue;
       }
-      const plan = await GymPlan.findById(sub.planId);
+      const plan = planMap.get(String(sub.planId));
       const planName = plan?.name || 'Membership';
 
       if (!sub.endDate) continue;
@@ -252,11 +275,12 @@ async function generateExpiryNotifications(ownerId) {
       const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
       if (diffDays > 3) {
-        // If subscription is now extended beyond 3 days, remove pending expiry alerts
-        await Notification.deleteMany({
-          subscriptionId: String(sub._id),
-          type: { $in: ['EXPIRED', 'EXPIRY_1_DAY', 'EXPIRY_3_DAYS'] },
-        });
+        tasks.push(
+          Notification.deleteMany({
+            subscriptionId: String(sub._id),
+            type: { $in: ['EXPIRED', 'EXPIRY_1_DAY', 'EXPIRY_3_DAYS'] },
+          })
+        );
         continue;
       }
 
@@ -269,47 +293,55 @@ async function generateExpiryNotifications(ownerId) {
         title = 'Membership Expired';
         message = `${member.name}'s ${planName} membership expired on ${expiryDateStr}.`;
         if (sub.status === 'ACTIVE') {
-          await Subscription.updateOne({ _id: sub._id }, { status: 'EXPIRED' });
+          tasks.push(Subscription.updateOne({ _id: sub._id }, { status: 'EXPIRED' }));
         }
-        // Remove pre-expiry notices so only the expired alert remains
-        await Notification.deleteMany({
-          subscriptionId: String(sub._id),
-          type: { $in: ['EXPIRY_1_DAY', 'EXPIRY_3_DAYS'] },
-        });
+        tasks.push(
+          Notification.deleteMany({
+            subscriptionId: String(sub._id),
+            type: { $in: ['EXPIRY_1_DAY', 'EXPIRY_3_DAYS'] },
+          })
+        );
       } else if (diffDays === 1) {
         type = 'EXPIRY_1_DAY';
         title = 'Expiring Tomorrow';
         message = `${member.name}'s ${planName} membership expires tomorrow on ${expiryDateStr}.`;
-        await Notification.deleteMany({ subscriptionId: String(sub._id), type: { $in: ['EXPIRED', 'EXPIRY_3_DAYS'] } });
+        tasks.push(Notification.deleteMany({ subscriptionId: String(sub._id), type: { $in: ['EXPIRED', 'EXPIRY_3_DAYS'] } }));
       } else if (diffDays <= 3) {
         type = 'EXPIRY_3_DAYS';
         title = `Expiring in ${diffDays} Days`;
         message = `${member.name}'s ${planName} membership expires on ${expiryDateStr} (in ${diffDays} days).`;
-        await Notification.deleteMany({ subscriptionId: String(sub._id), type: 'EXPIRED' });
+        tasks.push(Notification.deleteMany({ subscriptionId: String(sub._id), type: 'EXPIRED' }));
       }
 
       if (type) {
-        // Upsert by subscriptionId and type: guarantees NO duplicates on refresh and auto-updates message/dates
-        await Notification.findOneAndUpdate(
-          { subscriptionId: String(sub._id), type },
-          {
-            $set: {
-              userId: ownerId || sub.userId,
-              memberId: String(member._id),
-              title,
-              message,
-              daysRemaining: Math.max(0, diffDays),
+        tasks.push(
+          Notification.findOneAndUpdate(
+            { subscriptionId: String(sub._id), type },
+            {
+              $set: {
+                userId: ownerId || sub.userId,
+                memberId: String(member._id),
+                title,
+                message,
+                daysRemaining: Math.max(0, diffDays),
+              },
+              $setOnInsert: {
+                read: false,
+              },
             },
-            $setOnInsert: {
-              read: false,
-            },
-          },
-          { upsert: true, returnDocument: 'after' },
+            { upsert: true, returnDocument: 'after' }
+          )
         );
       }
     }
+
+    if (tasks.length > 0) {
+      await Promise.all(tasks);
+    }
   } catch (err) {
     console.error('Error generating notifications:', err.message);
+  } finally {
+    isGeneratingExpiry = false;
   }
 }
 
@@ -318,7 +350,7 @@ async function auth(req, res, next) {
     const rawToken = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const claims = jwt.verify(rawToken, JWT_SECRET);
     if (!mongoose.isValidObjectId(claims.sub)) return res.status(401).json({ message: 'Authentication required' });
-    const user = await User.findOne({ _id: claims.sub, isActive: true });
+    const user = await User.findOne({ _id: claims.sub, isActive: true }).lean();
     if (!user) return res.status(401).json({ message: 'Authentication required' });
     req.user = user;
     next();
@@ -443,12 +475,12 @@ app.get('/api/auth/renew-session', async (req, res) => {
 });
 
 app.get('/api/plans', async (_, res) => {
-  const plans = await GymPlan.find({ active: true }).sort({ price: 1 });
+  const plans = await GymPlan.find({ active: true }).sort({ price: 1 }).lean();
   res.json({ plans: plans.map(planResponse) });
 });
 
 app.get('/api/admin/plans', auth, ownerOnly, async (_, res) => {
-  const plans = await GymPlan.find().sort({ price: 1 });
+  const plans = await GymPlan.find().sort({ price: 1 }).lean();
   res.json({ plans: plans.map(planResponse) });
 });
 
@@ -491,9 +523,9 @@ app.put('/api/plans/:id', auth, ownerOnly, async (req, res) => {
 
 app.delete('/api/plans/:id', auth, ownerOnly, async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid plan ID' });
-  const plan = await GymPlan.findByIdAndUpdate(req.params.id, { active: false }, { new: true });
+  const plan = await GymPlan.findByIdAndDelete(req.params.id);
   if (!plan) return res.status(404).json({ message: 'Plan not found' });
-  res.json({ ok: true, message: 'Plan deactivated successfully' });
+  res.json({ ok: true, message: 'Plan permanently deleted from MongoDB' });
 });
 
 app.post('/api/memberships/purchase', auth, (_, res) => res.status(410).json({ message: 'Use the secure Razorpay payment flow' }));
@@ -672,11 +704,16 @@ app.put('/api/admin/notifications/:id/read', auth, ownerOnly, async (req, res) =
 
 app.post('/api/members/:id/send-reminder', auth, ownerOnly, async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid member ID' });
-  const member = await User.findOne({ _id: req.params.id, role: 'member' });
+  const [member, subscription, activePlans] = await Promise.all([
+    User.findOne({ _id: req.params.id, role: 'member' }).lean(),
+    Subscription.findOne({ userId: req.params.id }).lean(),
+    GymPlan.find({ active: true }).sort({ price: 1 }).lean(),
+  ]);
   if (!member) return res.status(404).json({ message: 'Member not found' });
 
-  const subscription = await Subscription.findOne({ userId: String(member._id) }).lean();
-  const plan = subscription ? await GymPlan.findById(subscription.planId).lean() : null;
+  const plan = subscription
+    ? activePlans.find((p) => String(p._id) === String(subscription.planId)) || (await GymPlan.findById(subscription.planId).lean())
+    : null;
 
   const clientOrigin = req.headers.origin || req.headers.referer;
   let baseUrl = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://warriorsgym.me' : 'http://localhost:5173');
@@ -695,6 +732,7 @@ app.post('/api/members/:id/send-reminder', auth, ownerOnly, async (req, res) => 
       member,
       subscription,
       plan,
+      activePlans,
       triggeredBy: String(req.user._id),
       baseUrl,
     });
@@ -706,11 +744,13 @@ app.post('/api/members/:id/send-reminder', auth, ownerOnly, async (req, res) => 
 
 app.post('/api/members/:id/send-welcome', auth, ownerOnly, async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid member ID' });
-  const member = await User.findOne({ _id: req.params.id, role: 'member' });
+  const [member, subscription] = await Promise.all([
+    User.findOne({ _id: req.params.id, role: 'member' }).lean(),
+    Subscription.findOne({ userId: req.params.id }).lean(),
+  ]);
   if (!member) return res.status(404).json({ message: 'Member not found' });
 
-  const subscription = await Subscription.findOne({ userId: String(member._id) }).lean();
-  const plan = subscription ? await GymPlan.findById(subscription.planId).lean() : null;
+  const plan = subscription?.planId ? await GymPlan.findById(subscription.planId).lean() : null;
   const { password } = req.body || {};
 
   try {
@@ -732,11 +772,16 @@ app.post('/api/admin/notifications/:id/send-reminder', auth, ownerOnly, async (r
   const notification = await Notification.findById(req.params.id);
   if (!notification) return res.status(404).json({ message: 'Notification not found' });
 
-  const member = await User.findById(notification.memberId);
+  const [member, subscription, activePlans] = await Promise.all([
+    User.findById(notification.memberId).lean(),
+    notification.subscriptionId ? Subscription.findById(notification.subscriptionId).lean() : Promise.resolve(null),
+    GymPlan.find({ active: true }).sort({ price: 1 }).lean(),
+  ]);
   if (!member) return res.status(404).json({ message: 'Member not found' });
 
-  const subscription = notification.subscriptionId ? await Subscription.findById(notification.subscriptionId).lean() : null;
-  const plan = subscription ? await GymPlan.findById(subscription.planId).lean() : null;
+  const plan = subscription
+    ? activePlans.find((p) => String(p._id) === String(subscription.planId)) || (await GymPlan.findById(subscription.planId).lean())
+    : null;
 
   const clientOrigin = req.headers.origin || req.headers.referer;
   let baseUrl = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://warriorsgym.me' : 'http://localhost:5173');
@@ -755,6 +800,7 @@ app.post('/api/admin/notifications/:id/send-reminder', auth, ownerOnly, async (r
       member,
       subscription,
       plan,
+      activePlans,
       triggeredBy: String(req.user._id),
       baseUrl,
     });
@@ -1081,14 +1127,14 @@ app.delete('/api/members/:id', auth, ownerOnly, async (req, res) => {
   try {
     session = await mongoose.startSession();
     await session.withTransaction(async () => {
-      await Subscription.deleteMany({ userId: memberId }).session(session);
-      await Payment.deleteMany({ userId: memberId }).session(session);
-      await WorkoutPlan.deleteMany({ memberId }).session(session);
-      await Notification.deleteMany({ memberId }).session(session);
-      await ReminderLog.deleteMany({ memberId }).session(session);
-      if (Diet) {
-        await Diet.deleteMany({ memberId }).session(session);
-      }
+      await Promise.all([
+        Subscription.deleteMany({ userId: memberId }).session(session),
+        Payment.deleteMany({ userId: memberId }).session(session),
+        WorkoutPlan.deleteMany({ memberId }).session(session),
+        Notification.deleteMany({ memberId }).session(session),
+        ReminderLog.deleteMany({ memberId }).session(session),
+        Diet ? Diet.deleteMany({ memberId }).session(session) : Promise.resolve(),
+      ]);
       await User.deleteOne({ _id: memberId, role: 'member' }).session(session);
     });
 

@@ -719,18 +719,26 @@ function MemberApp({ user, onLogout, initialPage = "dashboard", initialPlanId = 
     membership: null,
     workoutPlan: null,
   });
-  const [notice, setNotice] = useState("");
+  const isRefreshingRef = useRef(false);
   const refresh = async () => {
-    const [a, b, c] = await Promise.all([
-      api("/plans"),
-      api("/subscription/me"),
-      api("/workout-plan/me"),
-    ]);
-    setData({
-      plans: a.plans,
-      membership: b.subscription,
-      workoutPlan: c.plan,
-    });
+    if (isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
+    try {
+      const [a, b, c] = await Promise.all([
+        api("/plans"),
+        api("/subscription/me"),
+        api("/workout-plan/me"),
+      ]);
+      setData({
+        plans: a.plans,
+        membership: b.subscription,
+        workoutPlan: c.plan,
+      });
+    } catch (e) {
+      setNotice(e.message);
+    } finally {
+      isRefreshingRef.current = false;
+    }
   };
   useEffect(() => {
     refresh().catch((e) => setNotice(e.message));
@@ -742,21 +750,33 @@ function MemberApp({ user, onLogout, initialPage = "dashboard", initialPlanId = 
     let checkout;
     try {
       setNotice("Preparing secure payment order...");
-      const order = await api("/payments/orders", {
-        method: "POST",
-        body: JSON.stringify({ planId }),
-      });
-      if (!window.Razorpay) {
-        await new Promise((resolve) => {
-          if (window.Razorpay) return resolve();
+
+      const ensureRazorpay = () => {
+        if (typeof window !== "undefined" && window.Razorpay) return Promise.resolve(true);
+        return new Promise((resolve) => {
+          const existing = document.querySelector('script[src*="checkout.razorpay.com"]');
+          if (existing) {
+            existing.addEventListener("load", () => resolve(!!window.Razorpay), { once: true });
+            existing.addEventListener("error", () => resolve(false), { once: true });
+            return;
+          }
           const script = document.createElement("script");
           script.src = "https://checkout.razorpay.com/v1/checkout.js";
-          script.onload = () => resolve();
-          script.onerror = () => resolve();
-          document.body.appendChild(script);
-          setTimeout(resolve, 1500);
+          script.async = true;
+          script.onload = () => resolve(true);
+          script.onerror = () => resolve(false);
+          document.head.appendChild(script);
         });
-      }
+      };
+
+      const [order] = await Promise.all([
+        api("/payments/orders", {
+          method: "POST",
+          body: JSON.stringify({ planId }),
+        }),
+        ensureRazorpay(),
+      ]);
+
       if (!window.Razorpay) throw new Error("Payment checkout is unavailable. Please check your internet connection.");
       const razorpayKey = order.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
       if (!razorpayKey) throw new Error("Razorpay is not configured (missing key ID in environment).");
@@ -2084,7 +2104,10 @@ function OwnerApp({ user, onLogout }) {
   const [selectedMember, setSelectedMember] = useState(null);
   const [notice, setNotice] = useState("");
 
+  const isRefreshingRef = useRef(false);
   const refresh = async () => {
+    if (isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
     try {
       const [a, b, c, d, e] = await Promise.all([
         api("/admin/dashboard"),
@@ -2102,6 +2125,8 @@ function OwnerApp({ user, onLogout }) {
       });
     } catch (err) {
       setNotice(err.message || "Failed to sync latest data");
+    } finally {
+      isRefreshingRef.current = false;
     }
   };
 
@@ -2111,11 +2136,16 @@ function OwnerApp({ user, onLogout }) {
 
   const removeMember = async (member) => {
     try {
+      setData((prev) => ({
+        ...prev,
+        members: prev.members.filter((m) => m.id !== member.id),
+      }));
       await api(`/members/${member.id}`, { method: "DELETE" });
-      await refresh();
       setNotice(`Member ${member.name} permanently removed from MongoDB.`);
+      refresh().catch(() => {});
     } catch (error) {
       window.alert(error.message);
+      refresh().catch(() => {});
       throw error;
     }
   };
@@ -2137,8 +2167,14 @@ function OwnerApp({ user, onLogout }) {
     if (res?.member?.id && memberData?.password) {
       setMemberCreationPassword(res.member.id, memberData.password);
     }
-    await refresh();
+    if (res?.member) {
+      setData((prev) => ({
+        ...prev,
+        members: [res.member, ...prev.members.filter((m) => m.id !== res.member.id)],
+      }));
+    }
     setNotice("Member created and saved in MongoDB.");
+    refresh().catch(() => {});
   };
 
   const openWhatsAppUrl = (url) => {
@@ -2149,11 +2185,11 @@ function OwnerApp({ user, onLogout }) {
   const sendReminder = async (memberId) => {
     try {
       const response = await api(`/members/${memberId}/send-reminder`, { method: "POST" });
-      await refresh();
       if (response?.waUrl) {
         openWhatsAppUrl(response.waUrl);
       }
       setNotice(response.message || "WhatsApp opened. Press Send in WhatsApp to deliver.");
+      refresh().catch(() => {});
       return response;
     } catch (err) {
       setNotice(err.message);
@@ -2172,6 +2208,7 @@ function OwnerApp({ user, onLogout }) {
         openWhatsAppUrl(response.waUrl);
       }
       setNotice(response.message || `WhatsApp welcome message prepared for ${member.name}. Press Send in WhatsApp to deliver.`);
+      refresh().catch(() => {});
       return response;
     } catch {
       const waUrl = buildWelcomeWhatsAppUrl(member, data.plans, creationPwd);
@@ -2199,8 +2236,6 @@ function OwnerApp({ user, onLogout }) {
     await refresh();
   };
 
-
-
   const markNotificationRead = async (id) => {
     try {
       await api(`/admin/notifications/${id}/read`, { method: "PUT" });
@@ -2213,11 +2248,11 @@ function OwnerApp({ user, onLogout }) {
   const sendNotificationReminder = async (id) => {
     try {
       const res = await api(`/admin/notifications/${id}/send-reminder`, { method: "POST" });
-      await refresh();
       if (res?.waUrl) {
         openWhatsAppUrl(res.waUrl);
       }
       setNotice(res.message || "WhatsApp opened. Press Send in WhatsApp to deliver.");
+      refresh().catch(() => {});
     } catch (err) {
       setNotice(err.message);
     }
@@ -2390,6 +2425,7 @@ function MembersPage({
   const [dismissedAlerts, setDismissedAlerts] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [actionLoading, setActionLoading] = useState({ id: null, action: null });
 
   useEffect(() => {
     if (!previewPhoto && !memberToDelete) return;
@@ -2483,9 +2519,19 @@ function MembersPage({
                   <button
                     type="button"
                     className="flash-action-btn reminder"
-                    onClick={() => onSendReminder?.(m.id)}
+                    disabled={actionLoading.id === m.id}
+                    onClick={async () => {
+                      if (actionLoading.id === m.id) return;
+                      setActionLoading({ id: m.id, action: "reminder" });
+                      try {
+                        await onSendReminder?.(m.id);
+                      } finally {
+                        setActionLoading({ id: null, action: null });
+                      }
+                    }}
+                    title="Send WhatsApp renewal reminder"
                   >
-                    Send WhatsApp
+                    {actionLoading.id === m.id && actionLoading.action === "reminder" ? "Opening..." : "Send WhatsApp"}
                   </button>
                 </div>
               </div>
@@ -2518,9 +2564,19 @@ function MembersPage({
                   <button
                     type="button"
                     className="flash-action-btn reminder"
-                    onClick={() => onSendReminder?.(m.id)}
+                    disabled={actionLoading.id === m.id}
+                    onClick={async () => {
+                      if (actionLoading.id === m.id) return;
+                      setActionLoading({ id: m.id, action: "reminder" });
+                      try {
+                        await onSendReminder?.(m.id);
+                      } finally {
+                        setActionLoading({ id: null, action: null });
+                      }
+                    }}
+                    title="Send WhatsApp renewal reminder"
                   >
-                    Send WhatsApp
+                    {actionLoading.id === m.id && actionLoading.action === "reminder" ? "Opening..." : "Send WhatsApp"}
                   </button>
                 </div>
               </div>
@@ -2604,10 +2660,19 @@ function MembersPage({
                 <button
                   type="button"
                   className="member-action-btn reminder-btn"
-                  onClick={() => onSendReminder?.(m.id)}
+                  disabled={actionLoading.id === m.id}
+                  onClick={async () => {
+                    if (actionLoading.id === m.id) return;
+                    setActionLoading({ id: m.id, action: "reminder" });
+                    try {
+                      await onSendReminder?.(m.id);
+                    } finally {
+                      setActionLoading({ id: null, action: null });
+                    }
+                  }}
                   title="Send WhatsApp reminder"
                 >
-                  REMINDER
+                  {actionLoading.id === m.id && actionLoading.action === "reminder" ? "SENDING..." : "REMINDER"}
                 </button>
                 <button
                   type="button"
@@ -2620,18 +2685,25 @@ function MembersPage({
                 <button
                   type="button"
                   className="member-action-btn whatsapp-btn"
-                  onClick={() => {
-                    if (onSendWelcome) {
-                      onSendWelcome(m);
-                    } else {
-                      const creationPwd = getMemberCreationPassword(m.phone) || getMemberCreationPassword(m.id);
-                      const waUrl = buildWelcomeWhatsAppUrl(m, plans, creationPwd);
-                      openWhatsAppUrl(waUrl);
+                  disabled={actionLoading.id === m.id}
+                  onClick={async () => {
+                    if (actionLoading.id === m.id) return;
+                    setActionLoading({ id: m.id, action: "welcome" });
+                    try {
+                      if (onSendWelcome) {
+                        await onSendWelcome(m);
+                      } else {
+                        const creationPwd = getMemberCreationPassword(m.phone) || getMemberCreationPassword(m.id);
+                        const waUrl = buildWelcomeWhatsAppUrl(m, plans, creationPwd);
+                        openWhatsAppUrl(waUrl);
+                      }
+                    } finally {
+                      setActionLoading({ id: null, action: null });
                     }
                   }}
                   title="Send Welcome WhatsApp message"
                 >
-                  WELCOME WHATSAPP
+                  {actionLoading.id === m.id && actionLoading.action === "welcome" ? "OPENING..." : "WELCOME WHATSAPP"}
                 </button>
               </div>
             </div>
@@ -2788,6 +2860,7 @@ function OwnerPlans({ plans, onRefresh, setNotice }) {
   const [showForm, setShowForm] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [actionBusyPlanId, setActionBusyPlanId] = useState(null);
 
   const savePlan = async (event) => {
     event.preventDefault();
@@ -2835,23 +2908,29 @@ function OwnerPlans({ plans, onRefresh, setNotice }) {
   };
 
   const togglePlan = async (plan) => {
+    setActionBusyPlanId(plan.id);
     try {
       await api(`/plans/${plan.id}`, { method: "PUT", body: JSON.stringify({ active: !plan.active }) });
       setNotice(`Plan ${plan.name} status updated.`);
       await onRefresh();
     } catch (error) {
       window.alert(error.message);
+    } finally {
+      setActionBusyPlanId(null);
     }
   };
 
   const deletePlan = async (plan) => {
-    if (!window.confirm(`Deactivate plan ${plan.name}? Historical subscriptions will remain safe.`)) return;
+    if (!window.confirm(`Are you sure you want to permanently delete plan "${plan.name}"? This will permanently remove it from MongoDB.`)) return;
+    setActionBusyPlanId(plan.id);
     try {
       await api(`/plans/${plan.id}`, { method: "DELETE" });
-      setNotice(`Plan ${plan.name} deactivated.`);
+      setNotice(`Plan "${plan.name}" permanently deleted.`);
       await onRefresh();
     } catch (error) {
       window.alert(error.message);
+    } finally {
+      setActionBusyPlanId(null);
     }
   };
 
@@ -2936,11 +3015,17 @@ function OwnerPlans({ plans, onRefresh, setNotice }) {
               <Status status={p.active ? "ACTIVE" : "INACTIVE"} />
             </div>
             <div className="owner-plan-actions">
-              <button className="owner-plan-edit-btn" onClick={() => startEdit(p)} title="Edit plan details">
+              <button
+                className="owner-plan-edit-btn"
+                disabled={actionBusyPlanId === p.id}
+                onClick={() => startEdit(p)}
+                title="Edit plan details"
+              >
                 Edit
               </button>
               <button
                 className="icon-button"
+                disabled={actionBusyPlanId === p.id}
                 onClick={() => togglePlan(p)}
                 title={p.active ? "Deactivate plan" : "Activate plan"}
               >
@@ -2948,8 +3033,9 @@ function OwnerPlans({ plans, onRefresh, setNotice }) {
               </button>
               <button
                 className="remove-member"
+                disabled={actionBusyPlanId === p.id}
                 onClick={() => deletePlan(p)}
-                title="Deactivate / Delete plan safely"
+                title="Permanently delete plan from MongoDB"
               >
                 <X size={14} />
               </button>
@@ -2962,6 +3048,7 @@ function OwnerPlans({ plans, onRefresh, setNotice }) {
 }
 
 function NotificationsPage({ notifications, onViewMember, onSendReminder, onMarkRead }) {
+  const [activeNoticeId, setActiveNoticeId] = useState(null);
   return (
     <div>
       <Intro
@@ -3012,9 +3099,18 @@ function NotificationsPage({ notifications, onViewMember, onSendReminder, onMark
                 <button
                   className="text-action"
                   style={{ color: "#db321f" }}
-                  onClick={() => onSendReminder(n.id)}
+                  disabled={activeNoticeId === n.id}
+                  onClick={async () => {
+                    if (activeNoticeId === n.id) return;
+                    setActiveNoticeId(n.id);
+                    try {
+                      await onSendReminder(n.id);
+                    } finally {
+                      setActiveNoticeId(null);
+                    }
+                  }}
                 >
-                  Send WhatsApp
+                  {activeNoticeId === n.id ? "Opening..." : "Send WhatsApp"}
                 </button>
                 {!n.read && (
                   <button className="text-action" onClick={() => onMarkRead(n.id)}>
