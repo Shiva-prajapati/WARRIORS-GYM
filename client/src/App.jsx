@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { Component, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -22,6 +22,53 @@ import {
   Zap,
 } from "lucide-react";
 import "./App.css";
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("ErrorBoundary caught display error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: "100vh", backgroundColor: "#070708", color: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ maxWidth: 440, width: "100%", background: "#121214", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 32, textAlign: "center" }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, color: "#fff" }}>Unable to load view</h2>
+            <p style={{ color: "#a1a1aa", fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+              An unexpected display error occurred. You can reload the page or return to the main portal.
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                style={{ background: "#db321f", color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}
+              >
+                Reload
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem("warrior_token");
+                  window.location.href = "/";
+                }}
+                style={{ background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, padding: "10px 18px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}
+              >
+                Go to Home
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const rawApi = (import.meta.env.VITE_API_URL || "/api").trim().replace(/\/+$/, "");
 const API = (typeof window !== "undefined" && (window.location.hostname.includes("warriorsgym.me") || window.location.hostname.includes("vercel.app")))
@@ -719,21 +766,22 @@ function MemberApp({ user, onLogout, initialPage = "dashboard", initialPlanId = 
     membership: null,
     workoutPlan: null,
   });
+  const [notice, setNotice] = useState("");
   const isRefreshingRef = useRef(false);
   const refresh = async () => {
     if (isRefreshingRef.current) return;
     isRefreshingRef.current = true;
     try {
-      const [a, b, c] = await Promise.all([
+      const [plansRes, subRes, workoutRes] = await Promise.allSettled([
         api("/plans"),
         api("/subscription/me"),
         api("/workout-plan/me"),
       ]);
-      setData({
-        plans: a.plans,
-        membership: b.subscription,
-        workoutPlan: c.plan,
-      });
+      setData((prev) => ({
+        plans: plansRes.status === "fulfilled" && plansRes.value?.plans ? plansRes.value.plans : prev.plans,
+        membership: subRes.status === "fulfilled" && subRes.value ? subRes.value.subscription : prev.membership,
+        workoutPlan: workoutRes.status === "fulfilled" && workoutRes.value ? workoutRes.value.plan : prev.workoutPlan,
+      }));
     } catch (e) {
       setNotice(e.message);
     } finally {
@@ -1387,10 +1435,12 @@ function ProfilePage({ user }) {
           <h3>{user.name}</h3>
           <p>
             Member since{" "}
-            {new Date(user.createdAt).toLocaleDateString("en-IN", {
-              month: "long",
-              year: "numeric",
-            })}
+            {user.createdAt
+              ? new Date(user.createdAt).toLocaleDateString("en-IN", {
+                  month: "long",
+                  year: "numeric",
+                })
+              : "Recently"}
           </p>
         </div>
         <Status status={user.isActive ? "ACTIVE" : "INACTIVE"} />
@@ -3260,8 +3310,9 @@ export default function App() {
     setUser(u);
     setView(u.role === "owner" ? "owner" : "member");
   };
-  if (view === "member" && user)
-    return (
+  let content = null;
+  if (view === "member" && user) {
+    content = (
       <MemberApp
         user={user}
         onLogout={logout}
@@ -3269,36 +3320,39 @@ export default function App() {
         initialPlanId={initialPlanId}
       />
     );
-  if (view === "owner" && user)
-    return <OwnerApp user={user} onLogout={logout} />;
-  if (view === "login")
-    return (
+  } else if (view === "owner" && user) {
+    content = <OwnerApp user={user} onLogout={logout} />;
+  } else if (view === "login") {
+    content = (
       <Auth
         mode="member"
         onSuccess={success}
         onBack={() => setView("landing")}
       />
     );
-  if (view === "owner-login")
-    return (
+  } else if (view === "owner-login") {
+    content = (
       <Auth
         mode="owner"
         onSuccess={success}
         onBack={() => setView("landing")}
       />
     );
-  if (view === "register")
-    return (
+  } else if (view === "register") {
+    content = (
       <Auth
         mode="register"
         onSuccess={success}
         onBack={() => setView("landing")}
       />
     );
-  return (
-    <Landing
-      onLogin={(m) => setView(m === "owner" ? "owner-login" : "login")}
-      onRegister={() => setView("register")}
-    />
-  );
+  } else {
+    content = (
+      <Landing
+        onLogin={(m) => setView(m === "owner" ? "owner-login" : "login")}
+        onRegister={() => setView("register")}
+      />
+    );
+  }
+  return <ErrorBoundary>{content}</ErrorBoundary>;
 }
