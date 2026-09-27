@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   BarChart3,
   Bell,
+  Check,
   ChevronRight,
   Dumbbell,
   Eye,
@@ -949,6 +950,58 @@ function Intro({ kicker, title, text }) {
     </div>
   );
 }
+function getPlanTier(price, isFeatured) {
+  const p = Number(price) || 0;
+  if (p >= 5000) {
+    return {
+      tierKey: "tier-pro",
+      tierKicker: "TIER 04 · ELITE VIP",
+      badge: isFeatured ? "★ MOST POPULAR" : "★ ALL-ACCESS VIP",
+      badgeClass: "plan-badge-pro",
+      btnClass: "plan-btn-pro",
+    };
+  }
+  if (p >= 2000) {
+    return {
+      tierKey: "tier-high",
+      tierKicker: "TIER 03 · ADVANCED",
+      badge: isFeatured ? "★ MOST POPULAR" : "HIGH PERFORMANCE",
+      badgeClass: "plan-badge-high",
+      btnClass: "plan-btn-high",
+    };
+  }
+  if (p >= 1000) {
+    return {
+      tierKey: "tier-mid",
+      tierKicker: "TIER 02 · ACCELERATOR",
+      badge: isFeatured ? "★ MOST POPULAR" : "RECOMMENDED",
+      badgeClass: "plan-badge-mid",
+      btnClass: "plan-btn-mid",
+    };
+  }
+  return {
+    tierKey: "tier-entry",
+    tierKicker: "TIER 01 · ESSENTIAL",
+    badge: isFeatured ? "★ MOST POPULAR" : "FOUNDATION",
+    badgeClass: "plan-badge-entry",
+    btnClass: "plan-btn-entry",
+  };
+}
+
+function formatDurationSubtitle(duration, durationUnit) {
+  const d = Number(duration) || 1;
+  const unit = (durationUnit || "months").toLowerCase();
+  let unitText = unit;
+  if (unit.startsWith("month")) {
+    unitText = d === 1 ? "month" : "months";
+  } else if (unit.startsWith("day")) {
+    unitText = d === 1 ? "day" : "days";
+  } else if (unit.startsWith("year")) {
+    unitText = d === 1 ? "year" : "years";
+  }
+  return `For ${d} ${unitText} of focused training.`;
+}
+
 function MembershipPage({ plans, membership, days, onPurchase, initialPlanId = null }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [paymentError, setPaymentError] = useState("");
@@ -989,17 +1042,21 @@ function MembershipPage({ plans, membership, days, onPurchase, initialPlanId = n
     }
   };
   return (
-    <div>
-      <Intro
-        kicker="MEMBERSHIP"
-        title="Make the commitment."
-        text="Flexible plans. Serious results. Cancel the excuses."
-      />
+    <div className="membership-view">
+      <div className="membership-view-header">
+        <span className="membership-kicker">MEMBERSHIP PLANS</span>
+        <h2 className="membership-headline">MAKE THE COMMITMENT.</h2>
+        <p className="membership-subtitle">
+          Flexible plans. Serious results. Cancel the excuses. Choose your training tier below.
+        </p>
+      </div>
       {membership && (
-        <div className="compact-status">
-          <Status status={membership.status} />
-          <b>{membership.plan?.name}</b>
-          <span>
+        <div className="membership-status-banner">
+          <div className="status-banner-left">
+            <Status status={membership.status} />
+            <span className="status-plan-name">{membership.plan?.name}</span>
+          </div>
+          <span className="status-plan-expiry">
             {membership.status === "EXPIRED" || (membership.endDate && new Date(membership.endDate) <= new Date())
               ? `Expired on ${membership.endDate ? new Date(membership.endDate).toLocaleDateString("en-IN") : "recently"}`
               : `${days} days left · ends ${membership.endDate ? new Date(membership.endDate).toLocaleDateString("en-IN") : "-"}`}
@@ -1007,35 +1064,71 @@ function MembershipPage({ plans, membership, days, onPurchase, initialPlanId = n
         </div>
       )}
       <div className="plans-grid">
-        {plans.map((plan) => (
-          <article
-            className={`plan-card ${plan.featured ? "featured" : ""}`}
-            key={plan.id}
-          >
-            {plan.featured && <span className="popular">MOST POPULAR</span>}
-            <div className="plan-number">0{plan.duration}</div>
-            <h3>{plan.name}</h3>
-            {plan.description && <p style={{ fontStyle: "italic", marginBottom: 8 }}>{plan.description}</p>}
-            <p>
-              For {plan.duration} {plan.durationUnit?.toLowerCase() || "months"} of focused work.
-            </p>
-            <strong>{money.format(plan.price)}</strong>
-            <ul>
-              {(plan.features || []).map((f) => (
-                <li key={f}>
-                  <BadgeCheck size={15} />
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <Button
-              variant={plan.featured ? "primary" : "dark"}
-              onClick={() => { setSelectedPlan(plan); setPaymentError(""); }}
+        {plans.map((plan) => {
+          const tier = getPlanTier(plan.price, plan.featured);
+          const durationText = formatDurationSubtitle(plan.duration, plan.durationUnit);
+          const dNum = Number(plan.duration) || 1;
+          const unitLabel = dNum === 1
+            ? (plan.durationUnit === "DAYS" ? "day" : plan.durationUnit === "YEARS" ? "year" : "month")
+            : (plan.durationUnit?.toLowerCase() || "months");
+
+          return (
+            <article
+              className={`plan-card ${tier.tierKey} ${plan.featured ? "featured" : ""}`}
+              key={plan.id}
             >
-              Choose plan <ArrowUpRight size={15} />
-            </Button>
-          </article>
-        ))}
+              <div className="plan-card-topline">
+                <span className="plan-tier-kicker">{tier.tierKicker}</span>
+                <span className={`plan-tier-badge ${tier.badgeClass}`}>{tier.badge}</span>
+              </div>
+
+              <div className="plan-header-block">
+                <h3 className="plan-name">{plan.name}</h3>
+                <div className="plan-duration-box">
+                  <span className="plan-duration-text">{durationText}</span>
+                </div>
+                {plan.description && (
+                  <p className="plan-desc-text">{plan.description}</p>
+                )}
+              </div>
+
+              <div className="plan-price-block">
+                <div className="plan-price-row">
+                  <span className="plan-currency-symbol">₹</span>
+                  <span className="plan-price-amount">{Number(plan.price).toLocaleString("en-IN")}</span>
+                </div>
+                <span className="plan-billing-interval">
+                  / {dNum} {unitLabel}
+                </span>
+              </div>
+
+              <div className="plan-card-divider" />
+
+              <div className="plan-features-block">
+                <span className="plan-features-heading">WHAT'S INCLUDED:</span>
+                <ul className="plan-features-list">
+                  {(plan.features || []).map((feature, idx) => (
+                    <li key={idx} className="plan-feature-item">
+                      <span className="feature-icon-badge">
+                        <Check size={13} strokeWidth={2.8} />
+                      </span>
+                      <span className="feature-item-text">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <button
+                type="button"
+                className={`plan-choose-btn ${tier.btnClass}`}
+                onClick={() => { setSelectedPlan(plan); setPaymentError(""); }}
+              >
+                <span>CHOOSE PLAN</span>
+                <ArrowRight size={16} />
+              </button>
+            </article>
+          );
+        })}
       </div>
       {selectedPlan && (
         <div className="modal-backdrop" onClick={() => setSelectedPlan(null)}>
