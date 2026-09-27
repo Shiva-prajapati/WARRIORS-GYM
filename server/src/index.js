@@ -152,8 +152,7 @@ function normalizePhone(value) {
 }
 function validPhone(value) {
   if (typeof value !== 'string') return false;
-  const digits = normalizePhone(value);
-  return digits.length >= 10 && digits.length <= 15;
+  return /^[0-9]{10}$/.test(value.trim());
 }
 function validIndianMobile(value) {
   const digits = normalizePhone(value);
@@ -357,7 +356,8 @@ app.get('/api/health', async (_, res) => {
 });
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   const { name, phone, password, email, village, profilePicture, dateOfBirth, gender, experience } = req.body || {};
-  if (!validateString(name, 2, 100) || !validPhone(phone) || !validPassword(password)) return res.status(400).json({ message: 'Name, phone and password are required and valid' });
+  if (!validPhone(phone)) return res.status(400).json({ message: 'Enter a valid 10-digit mobile number.' });
+  if (!validateString(name, 2, 100) || !validPassword(password)) return res.status(400).json({ message: 'Name and password are required and valid' });
   try {
     const cleanPhone = normalizePhone(phone) || phone.trim();
     const user = await User.create({ name: name.trim(), phone: cleanPhone, passwordHash: await bcrypt.hash(password, 12), email, village: typeof village === 'string' ? village.trim() : undefined, profilePicture, dateOfBirth, gender, experience, role: 'member' });
@@ -370,7 +370,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 app.post('/api/auth/setup-owner', authLimiter, explicitOwnerSetup, async (req, res) => {
   if (await User.exists({ role: 'owner' })) return res.status(409).json({ message: 'Owner setup has already been completed' });
   const { name, phone, password, email } = req.body || {};
-  if (!validateString(name, 2, 100) || !validPhone(phone) || !validPassword(password)) return res.status(400).json({ message: 'Name, phone and password are required and valid' });
+  if (!validPhone(phone)) return res.status(400).json({ message: 'Enter a valid 10-digit mobile number.' });
+  if (!validateString(name, 2, 100) || !validPassword(password)) return res.status(400).json({ message: 'Name, phone and password are required and valid' });
   try {
     const owner = await User.create({ name: name.trim(), phone: phone.trim(), email, passwordHash: await bcrypt.hash(password, 12), role: 'owner' });
     res.status(201).json({ user: safeUser(owner), token: tokenFor(owner) });
@@ -381,7 +382,8 @@ app.post('/api/auth/setup-owner', authLimiter, explicitOwnerSetup, async (req, r
 });
 app.post('/api/auth/login', authLimiter, async (req, res) => {
   const { phone, password } = req.body || {};
-  if (!validPhone(phone) || typeof password !== 'string') return res.status(401).json({ message: 'Invalid phone number or password' });
+  if (!validPhone(phone)) return res.status(400).json({ message: 'Enter a valid 10-digit mobile number.' });
+  if (typeof password !== 'string') return res.status(401).json({ message: 'Invalid phone number or password' });
   const raw = phone.trim();
   const normalized = normalizePhone(raw);
   const candidates = [...new Set([raw, normalized, '+91' + normalized, '+91 ' + normalized, '0' + normalized].filter(Boolean))];
@@ -406,7 +408,7 @@ app.put('/api/auth/profile', auth, async (req, res) => {
   if (invalidFields.length) return res.status(400).json({ message: `Unsupported profile fields: ${invalidFields.join(', ')}` });
   const updates = { ...req.body };
   if (updates.name !== undefined && !validateString(updates.name, 2, 100)) return res.status(400).json({ message: 'Name is invalid' });
-  if (updates.phone !== undefined && !validPhone(updates.phone)) return res.status(400).json({ message: 'Phone number is invalid' });
+  if (updates.phone !== undefined && !validPhone(updates.phone)) return res.status(400).json({ message: 'Enter a valid 10-digit mobile number.' });
   if (updates.email === '') updates.email = undefined;
   try {
     const user = await User.findByIdAndUpdate(req.user._id, { $set: updates }, { new: true, runValidators: true });
@@ -787,8 +789,11 @@ app.post('/api/members', auth, ownerOnly, async (req, res) => {
     endDate: customEndDate,
   } = req.body || {};
 
-  if (!validateString(name, 2, 100) || !validPhone(phone) || !validPassword(password) || !['BEGINNER', 'INTERMEDIATE', 'ADVANCED'].includes(experience) || typeof isActive !== 'boolean' || !validProfilePicture(profilePicture)) {
-    return res.status(400).json({ message: 'Enter valid member details (name, 10-digit mobile number, and password of at least 8 characters)' });
+  if (!validPhone(phone)) {
+    return res.status(400).json({ message: 'Enter a valid 10-digit mobile number.' });
+  }
+  if (!validateString(name, 2, 100) || !validPassword(password) || !['BEGINNER', 'INTERMEDIATE', 'ADVANCED'].includes(experience) || typeof isActive !== 'boolean' || !validProfilePicture(profilePicture)) {
+    return res.status(400).json({ message: 'Enter valid member details (name and password of at least 8 characters)' });
   }
 
   const cleanPhone = normalizePhone(phone) || phone.trim();
@@ -1054,6 +1059,7 @@ app.put('/api/members/:id', auth, ownerOnly, async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid member ID' });
   const allowedFields = ['name', 'phone', 'email', 'village', 'profilePicture', 'dateOfBirth', 'gender', 'experience', 'isActive'];
   if (Object.keys(req.body || {}).some((field) => !allowedFields.includes(field))) return res.status(400).json({ message: 'Unsupported member fields' });
+  if (req.body.phone !== undefined && !validPhone(req.body.phone)) return res.status(400).json({ message: 'Enter a valid 10-digit mobile number.' });
   const member = await User.findOneAndUpdate({ _id: req.params.id, role: 'member' }, { $set: req.body }, { new: true, runValidators: true });
   if (!member) return res.status(404).json({ message: 'Member not found' });
   res.json({ member: safeUser(member) });

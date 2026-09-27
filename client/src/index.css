@@ -1623,52 +1623,66 @@ h3 {
   box-shadow: 0 6px 24px rgba(229, 27, 36, 0.65);
 }
 
-/* 4. TIER PRO (>= ₹5,000) - Luxury Gold Onyx */
+/* 4. TIER ULTRA PREMIUM (Highest-Price Plan) - Deep Black + Charcoal + Metallic Gold Luxury */
+.plan-card.tier-ultra-premium,
 .plan-card.tier-pro {
-  background: linear-gradient(180deg, #261f14 0%, #14100a 100%);
-  border: 1px solid rgba(229, 169, 60, 0.65);
-  box-shadow: 0 16px 45px rgba(229, 169, 60, 0.2), 0 0 25px rgba(229, 169, 60, 0.12);
+  background: linear-gradient(180deg, #18140d 0%, #0e0c08 100%);
+  border: 1px solid rgba(212, 175, 55, 0.7);
+  box-shadow: 0 16px 45px rgba(212, 175, 55, 0.22), 0 0 25px rgba(212, 175, 55, 0.15);
 }
 
+.plan-card.tier-ultra-premium:hover,
 .plan-card.tier-pro:hover {
-  border-color: rgba(255, 215, 0, 0.85);
-  box-shadow: 0 22px 55px rgba(229, 169, 60, 0.32), 0 0 30px rgba(255, 215, 0, 0.2);
+  border-color: rgba(255, 215, 0, 0.95);
+  box-shadow: 0 22px 55px rgba(212, 175, 55, 0.35), 0 0 35px rgba(255, 215, 0, 0.25);
+  transform: translateY(-4px);
 }
 
+.plan-card.tier-ultra-premium .plan-tier-kicker,
 .plan-card.tier-pro .plan-tier-kicker {
-  color: #e5a93c;
+  color: #d4af37;
+  letter-spacing: 0.12em;
+  font-weight: 800;
 }
 
+.plan-card.tier-ultra-premium .plan-currency-symbol,
 .plan-card.tier-pro .plan-currency-symbol {
-  color: #e5a93c;
+  color: #d4af37;
 }
 
+.plan-tier-badge.plan-badge-ultra,
 .plan-tier-badge.plan-badge-pro {
-  background: linear-gradient(135deg, rgba(229, 169, 60, 0.28), rgba(255, 215, 0, 0.18));
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.3), rgba(255, 215, 0, 0.2));
   color: #ffd768;
-  border: 1px solid rgba(229, 169, 60, 0.65);
+  border: 1px solid rgba(212, 175, 55, 0.8);
   font-weight: 800;
+  box-shadow: 0 2px 10px rgba(212, 175, 55, 0.25);
 }
 
+.plan-card.tier-ultra-premium .plan-features-heading,
 .plan-card.tier-pro .plan-features-heading {
-  color: #e5a93c;
+  color: #d4af37;
 }
 
+.plan-card.tier-ultra-premium .feature-icon-badge,
 .plan-card.tier-pro .feature-icon-badge {
-  background: rgba(229, 169, 60, 0.24);
+  background: rgba(212, 175, 55, 0.25);
   color: #ffd768;
 }
 
+.plan-choose-btn.plan-btn-ultra,
 .plan-choose-btn.plan-btn-pro {
-  background: linear-gradient(135deg, #d4932a 0%, #f5c469 50%, #d4932a 100%);
-  color: #0f0c07;
+  background: linear-gradient(135deg, #c59b27 0%, #ffd768 50%, #c59b27 100%);
+  color: #0c0a06;
   font-weight: 800;
-  box-shadow: 0 4px 18px rgba(212, 147, 42, 0.45);
+  box-shadow: 0 4px 20px rgba(212, 175, 55, 0.5);
+  border: none;
 }
 
+.plan-choose-btn.plan-btn-ultra:hover,
 .plan-choose-btn.plan-btn-pro:hover {
-  background: linear-gradient(135deg, #e5a338 0%, #fed885 50%, #e5a338 100%);
-  box-shadow: 0 6px 24px rgba(212, 147, 42, 0.65);
+  background: linear-gradient(135deg, #d8ab30 0%, #ffe082 50%, #d8ab30 100%);
+  box-shadow: 0 6px 28px rgba(212, 175, 55, 0.7);
 }
 .workout-list,
 .table-panel,
@@ -2385,36 +2399,207 @@ h3 {
 }
 .owner-plan-list {
   display: grid;
-  gap: 9px;
+  gap: 12px;
+  width: 100%;
 }
 .owner-plan {
   display: grid;
-  grid-template-columns: 60px 1fr 120px 90px 36px;
+  grid-template-columns: 50px 1.5fr 120px 90px auto;
   align-items: center;
   gap: 18px;
   background: #fff;
   border: 1px solid #e0dbd2;
-  padding: 15px 20px;
+  padding: 16px 20px;
+  border-radius: 4px;
 }
-.owner-plan > b {
-  font-size: 13px;
-}
-.owner-plan p {
-  color: #928b82;
-  font-size: 10px;
-  margin-top: 5px;
-}
-.owner-plan > strong {
-  font: 18px "Space Grotesk";
-}
-.owner-plan .text-action {
-  color: #24231f;
-  font-weight: 800;
-  cursor: pointer;
-  transition: color 0.15s ease;
-}
-.owner-plan .text-action:hover {
+.owner-plan .plan-number {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
   color: #db321f;
+  line-height: 1;
+}
+.owner-plan-details b {
+  font-size: 14px;
+  color: #181715;
+  display: block;
+}
+.owner-plan-desc {
+  display: block;
+  color: #6e685f;
+  font-size: 11px;
+  margin-top: 3px;
+  line-height: 1.4;
+}
+.owner-plan-features {
+  color: #928b82;
+  font-size: 11px;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+.owner-plan-price {
+  font: 18px "Space Grotesk", sans-serif;
+  color: #181715;
+  white-space: nowrap;
+}
+.owner-plan-status-wrap {
+  display: flex;
+  align-items: center;
+}
+.owner-plan-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.owner-plan-edit-btn {
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  color: #24231f;
+  cursor: pointer;
+  padding: 7px 12px;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+.owner-plan-edit-btn:hover {
+  color: #db321f;
+  background: #fdf5f4;
+}
+
+/* Owner Dashboard Plans - Mobile Responsiveness (Fix 1) */
+@media (max-width: 860px) {
+  .owner-plan-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+  }
+
+  .owner-plan {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    column-gap: 12px;
+    row-gap: 12px;
+    align-items: start;
+    padding: 16px;
+    background: #ffffff;
+    border: 1px solid #e0dbd2;
+    border-radius: 6px;
+    box-sizing: border-box;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .owner-plan .plan-number {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+    font-size: 14px;
+    font-weight: 700;
+    color: #db321f;
+    background: #fdf2f0;
+    border: 1px solid #f9d5d0;
+    padding: 4px 8px;
+    border-radius: 4px;
+    line-height: 1.2;
+    align-self: start;
+  }
+
+  .owner-plan .owner-plan-details {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+    min-width: 0;
+  }
+
+  .owner-plan-details b {
+    font-size: 16px;
+    line-height: 1.3;
+    color: #181715;
+    word-break: break-word;
+  }
+
+  .owner-plan-desc {
+    font-size: 12px;
+    color: #6e685f;
+    margin-top: 4px;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
+  .owner-plan-features {
+    font-size: 11px;
+    color: #8c857b;
+    margin-top: 6px;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+
+  .owner-plan .owner-plan-status-wrap {
+    grid-column: 3 / 4;
+    grid-row: 1 / 2;
+    justify-self: end;
+    align-self: start;
+  }
+
+  .owner-plan .owner-plan-price {
+    grid-column: 1 / -1;
+    grid-row: 2 / 3;
+    font: 700 22px "Space Grotesk", sans-serif;
+    color: #181715;
+    padding-top: 10px;
+    border-top: 1px solid #f0ebe4;
+  }
+
+  .owner-plan .owner-plan-actions {
+    grid-column: 1 / -1;
+    grid-row: 3 / 4;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f0ebe4;
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: flex-start;
+  }
+
+  .owner-plan-edit-btn {
+    flex: 1;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f5f2eb;
+    border: 1px solid #dcd5ca;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #181715;
+    padding: 0 16px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .owner-plan-edit-btn:hover {
+    background: #ede6d8;
+    color: #db321f;
+  }
+
+  .owner-plan-actions .icon-button {
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: 4px;
+    touch-action: manipulation;
+  }
+
+  .owner-plan-actions .remove-member {
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: 4px;
+    touch-action: manipulation;
+  }
 }
 .settings-panel {
   max-width: 650px;

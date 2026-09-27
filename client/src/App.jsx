@@ -355,7 +355,15 @@ function Auth({ mode, onSuccess, onBack }) {
   });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const update = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const update = (e) => {
+    const { name, value } = e.target;
+    if (name === "phone") {
+      const cleaned = value.replace(/\D/g, "").slice(0, 10);
+      setForm((prev) => ({ ...prev, phone: cleaned }));
+      return;
+    }
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
   const updatePicture = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -369,12 +377,19 @@ function Auth({ mode, onSuccess, onBack }) {
   };
   const submit = async (e) => {
     e.preventDefault();
-    setBusy(true);
     setError("");
+
+    const phoneDigits = (form.phone || "").trim().replace(/\D/g, "");
+    if (!/^[0-9]{10}$/.test(phoneDigits)) {
+      setError("Enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    setBusy(true);
     try {
       const data = await api(register ? "/auth/register" : "/auth/login", {
         method: "POST",
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, phone: phoneDigits }),
       });
       localStorage.setItem("warrior_token", data.token);
       onSuccess(data.user);
@@ -491,9 +506,13 @@ function Auth({ mode, onSuccess, onBack }) {
                 <input
                   className="auth-input-light"
                   name="phone"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]{10}"
+                  maxLength={10}
                   value={form.phone}
                   onChange={update}
-                  placeholder={register ? "10 digit mobile number" : "10 digit mobile number or ID"}
+                  placeholder="10 digit mobile number"
                   required
                   autoFocus
                 />
@@ -950,18 +969,54 @@ function Intro({ kicker, title, text }) {
     </div>
   );
 }
-function getPlanTier(price, isFeatured) {
-  const p = Number(price) || 0;
-  if (p >= 5000) {
+function getPlanTier(plan, allPlans = []) {
+  const price = Number(plan?.price) || 0;
+  const isFeatured = !!plan?.featured;
+
+  // Dynamically extract unique prices sorted ascending
+  const uniquePrices = Array.from(
+    new Set(allPlans.map((p) => Number(p.price) || 0))
+  ).sort((a, b) => a - b);
+
+  const maxPrice = uniquePrices.length > 0 ? uniquePrices[uniquePrices.length - 1] : 0;
+  const totalTiers = uniquePrices.length;
+  const rank = uniquePrices.indexOf(price); // 0 = lowest, totalTiers - 1 = highest
+
+  // 1. HIGHEST PRICE PLAN: Automatically receives the ULTRA PREMIUM design (Black + Luxury Gold)
+  if (price === maxPrice && maxPrice > 0) {
     return {
-      tierKey: "tier-pro",
-      tierKicker: "TIER 04 · ELITE VIP",
-      badge: isFeatured ? "★ MOST POPULAR" : "★ ALL-ACCESS VIP",
-      badgeClass: "plan-badge-pro",
-      btnClass: "plan-btn-pro",
+      tierKey: "tier-ultra-premium",
+      tierKicker: "TIER 04 · ULTRA PREMIUM",
+      badge: isFeatured ? "★ MOST POPULAR" : "★ ULTRA PREMIUM",
+      badgeClass: "plan-badge-ultra",
+      btnClass: "plan-btn-ultra",
     };
   }
-  if (p >= 2000) {
+
+  // 2. Only 1 or 2 unique prices:
+  if (totalTiers <= 2) {
+    return {
+      tierKey: "tier-entry",
+      tierKicker: "TIER 01 · ESSENTIAL",
+      badge: isFeatured ? "★ MOST POPULAR" : "FOUNDATION",
+      badgeClass: "plan-badge-entry",
+      btnClass: "plan-btn-entry",
+    };
+  }
+
+  // 3. LOWEST PRICE PLAN (Rank 0): Clean Entry-Level Design
+  if (rank === 0) {
+    return {
+      tierKey: "tier-entry",
+      tierKicker: "TIER 01 · ESSENTIAL",
+      badge: isFeatured ? "★ MOST POPULAR" : "FOUNDATION",
+      badgeClass: "plan-badge-entry",
+      btnClass: "plan-btn-entry",
+    };
+  }
+
+  // 4. HIGH PRICE PLAN (Rank totalTiers - 2, right below highest): Dark Premium with Strong Red/Orange Accent
+  if (rank === totalTiers - 2) {
     return {
       tierKey: "tier-high",
       tierKicker: "TIER 03 · ADVANCED",
@@ -970,21 +1025,14 @@ function getPlanTier(price, isFeatured) {
       btnClass: "plan-btn-high",
     };
   }
-  if (p >= 1000) {
-    return {
-      tierKey: "tier-mid",
-      tierKicker: "TIER 02 · ACCELERATOR",
-      badge: isFeatured ? "★ MOST POPULAR" : "RECOMMENDED",
-      badgeClass: "plan-badge-mid",
-      btnClass: "plan-btn-mid",
-    };
-  }
+
+  // 5. MID PRICE PLAN (Between lowest and high): More Premium Accent, Stronger Hierarchy
   return {
-    tierKey: "tier-entry",
-    tierKicker: "TIER 01 · ESSENTIAL",
-    badge: isFeatured ? "★ MOST POPULAR" : "FOUNDATION",
-    badgeClass: "plan-badge-entry",
-    btnClass: "plan-btn-entry",
+    tierKey: "tier-mid",
+    tierKicker: "TIER 02 · ACCELERATOR",
+    badge: isFeatured ? "★ MOST POPULAR" : "RECOMMENDED",
+    badgeClass: "plan-badge-mid",
+    btnClass: "plan-btn-mid",
   };
 }
 
@@ -1065,7 +1113,7 @@ function MembershipPage({ plans, membership, days, onPurchase, initialPlanId = n
       )}
       <div className="plans-grid">
         {plans.map((plan) => {
-          const tier = getPlanTier(plan.price, plan.featured);
+          const tier = getPlanTier(plan, plans);
           const durationText = formatDurationSubtitle(plan.duration, plan.durationUnit);
           const dNum = Number(plan.duration) || 1;
           const unitLabel = dNum === 1
@@ -1389,7 +1437,15 @@ function AddMemberModal({ plans, onClose, onCreate }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const update = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const update = (e) => {
+    const { name, value } = e.target;
+    if (name === "phone") {
+      const cleaned = value.replace(/\D/g, "").slice(0, 10);
+      setForm((prev) => ({ ...prev, phone: cleaned }));
+      return;
+    }
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handlePlanChange = (e) => {
     const nextPlanId = e.target.value;
@@ -1437,7 +1493,8 @@ function AddMemberModal({ plans, onClose, onCreate }) {
     e.preventDefault();
     setError("");
     if (!form.name.trim()) return setError("Full name is required.");
-    if (!/^[6-9][0-9]{9}$/.test(form.phone.trim())) return setError("Enter a valid 10-digit Indian mobile number.");
+    const phoneDigits = (form.phone || "").trim().replace(/\D/g, "");
+    if (!/^[0-9]{10}$/.test(phoneDigits)) return setError("Enter a valid 10-digit mobile number.");
     if (form.password.length < 8) return setError("Password must be at least 8 characters.");
 
     if (form.planId) {
@@ -1451,7 +1508,7 @@ function AddMemberModal({ plans, onClose, onCreate }) {
 
     setBusy(true);
     try {
-      await onCreate(form);
+      await onCreate({ ...form, phone: phoneDigits });
       onClose();
     } catch (err) {
       setError(err.message);
@@ -1482,7 +1539,16 @@ function AddMemberModal({ plans, onClose, onCreate }) {
           </label>
           <label>
             Phone Number (10 Digits) *
-            <input name="phone" value={form.phone} onChange={update} placeholder="9876543210" required />
+            <input
+              name="phone"
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
+              value={form.phone}
+              onChange={update}
+              placeholder="9876543210"
+              required
+            />
           </label>
         </div>
 
@@ -2858,19 +2924,21 @@ function OwnerPlans({ plans, onRefresh, setNotice }) {
 
       <div className="owner-plan-list">
         {plans.map((p) => (
-          <div className="owner-plan" key={p.id} style={{ gridTemplateColumns: "60px 1.5fr 120px 90px auto auto" }}>
+          <div className="owner-plan" key={p.id}>
             <div className="plan-number">0{p.duration}</div>
-            <div>
+            <div className="owner-plan-details">
               <b>{p.name}</b>
-              {p.description && <small style={{ display: "block", color: "#6e685f" }}>{p.description}</small>}
-              <p>{(p.features || []).join(" · ")}</p>
+              {p.description && <small className="owner-plan-desc">{p.description}</small>}
+              <p className="owner-plan-features">{(p.features || []).join(" · ")}</p>
             </div>
-            <strong>{money.format(p.price)}</strong>
-            <Status status={p.active ? "ACTIVE" : "INACTIVE"} />
-            <button className="text-action" onClick={() => startEdit(p)} title="Edit plan details">
-              Edit
-            </button>
-            <div style={{ display: "flex", gap: 6 }}>
+            <strong className="owner-plan-price">{money.format(p.price)}</strong>
+            <div className="owner-plan-status-wrap">
+              <Status status={p.active ? "ACTIVE" : "INACTIVE"} />
+            </div>
+            <div className="owner-plan-actions">
+              <button className="owner-plan-edit-btn" onClick={() => startEdit(p)} title="Edit plan details">
+                Edit
+              </button>
               <button
                 className="icon-button"
                 onClick={() => togglePlan(p)}

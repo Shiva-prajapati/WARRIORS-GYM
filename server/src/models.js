@@ -4,7 +4,7 @@ const { Schema } = mongoose;
 
 const userSchema = new Schema({
   name: { type: String, required: true, trim: true, minlength: 2, maxlength: 100 },
-  phone: { type: String, required: true, unique: true, index: true, trim: true, match: /^\+?[0-9]{10,15}$/ },
+  phone: { type: String, required: true, unique: true, index: true, trim: true, match: /^[0-9]{10}$/ },
   email: { type: String, lowercase: true, trim: true, sparse: true, unique: true, match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
   passwordHash: { type: String, required: true, select: false },
   role: { type: String, enum: ['member', 'owner'], default: 'member', required: true },
