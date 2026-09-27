@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
+  ArrowRight,
   ArrowUpRight,
   BadgeCheck,
   BarChart3,
   Bell,
   ChevronRight,
   Dumbbell,
+  Eye,
+  EyeOff,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -339,8 +342,8 @@ function Landing({ onLogin, onRegister }) {
 }
 
 function Auth({ mode, onSuccess, onBack }) {
-  const [owner, setOwner] = useState(mode === "owner");
   const [register, setRegister] = useState(mode === "register");
+  const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -380,157 +383,193 @@ function Auth({ mode, onSuccess, onBack }) {
       setBusy(false);
     }
   };
+
   return (
     <main className="auth-page">
-      <div className="auth-visual">
-        <button className="back-button" onClick={onBack}>
-          ← Back to home
+      <header className="auth-header">
+        <div className="auth-header-brand" onClick={onBack} title="Back to home">
+          <div className="auth-logo-badge">
+            <svg viewBox="0 0 512 512" width="28" height="28" fill="none">
+              <line x1="80" y1="80" x2="432" y2="432" stroke="#9da3af" strokeWidth="26" strokeLinecap="round"/>
+              <rect x="70" y="55" width="20" height="70" rx="4" fill="#e51b24" transform="rotate(45 80 90)"/>
+              <rect x="420" y="405" width="20" height="70" rx="4" fill="#e51b24" transform="rotate(45 430 440)"/>
+              <line x1="432" y1="80" x2="80" y2="432" stroke="#9da3af" strokeWidth="26" strokeLinecap="round"/>
+              <rect x="420" y="55" width="20" height="70" rx="4" fill="#e51b24" transform="rotate(-45 430 90)"/>
+              <rect x="70" y="405" width="20" height="70" rx="4" fill="#e51b24" transform="rotate(-45 80 440)"/>
+              <path d="M 256 100 C 340 100, 390 135, 390 190 C 390 320, 256 425, 256 425 C 256 425, 122 320, 122 190 C 122 135, 172 100, 256 100 Z" fill="#16181d" stroke="#cbd0db" strokeWidth="18" strokeLinejoin="round"/>
+              <path d="M 256 122 C 324 122, 368 152, 368 198 C 368 305, 256 395, 256 395 C 256 395, 144 305, 144 198 C 144 152, 188 122, 256 122 Z" fill="#0d0e12" stroke="#e51b24" strokeWidth="8"/>
+              <path d="M 180 185 L 214 185 L 238 290 L 256 220 L 274 290 L 298 185 L 332 185 L 292 340 L 262 340 L 256 312 L 250 340 L 220 340 Z" fill="#ffffff"/>
+              <polygon points="256,160 266,220 256,245 246,220" fill="#e51b24"/>
+            </svg>
+          </div>
+          <div className="auth-brand-text">
+            <span className="auth-brand-title">WARRIORS FITNESS GYM</span>
+            <span className="auth-brand-sub">CO LTD</span>
+          </div>
+        </div>
+        <button type="button" className="auth-home-link" onClick={onBack}>
+          HOME <ArrowRight size={14} />
         </button>
-        <Brand />
-        <div className="auth-visual-copy">
-          <div className="eyebrow">
-            {owner ? "OWNER COMMAND CENTER" : "THE WARRIORS CLUB"}
-          </div>
-          <h1>
-            {owner ? (
-              <>
-                RUN THE<br />
-                <em>MISSION.</em>
-              </>
-            ) : (
-              <>
-                EARN YOUR<br />
-                <em>EDGE.</em>
-              </>
-            )}
-          </h1>
-          <p>
-            {owner
-              ? "A clear view of the people, revenue, and momentum behind your gym."
-              : "Your training, performance, and progress plan in one focused place."}
-          </p>
-        </div>
-      </div>
-      <div className="auth-form-wrap">
-        <div className="auth-toggle">
-          <button
-            className={!owner && !register ? "selected" : ""}
-            onClick={() => {
-              setOwner(false);
-              setRegister(false);
-            }}
-          >
-            Member login
-          </button>
-          <button
-            className={owner ? "selected" : ""}
-            onClick={() => {
-              setOwner(true);
-              setRegister(false);
-            }}
-          >
-            Owner login
-          </button>
-        </div>
-        <form className="auth-form" onSubmit={submit}>
-          <div className="form-heading">
-            <span className="kicker">
-              {register
-                ? "START HERE"
-                : owner
-                  ? "SECURE ACCESS"
-                  : "WELCOME BACK"}
-            </span>
-            <h2>
-              {register
-                ? "Create your warrior profile."
-                : owner
-                  ? "Welcome, commander."
-                  : "Welcome back, warrior."}
-            </h2>
-            <p>
-              {register
-                ? "A few details, then we start building."
-                : "Enter your details to continue your journey."}
+      </header>
+
+      <div className="auth-body">
+        <section className="auth-hero-pane">
+          <div className="auth-hero-content">
+            <div className="auth-hero-crest">
+              <svg viewBox="0 0 512 512" width="76" height="76" fill="none">
+                <line x1="80" y1="80" x2="432" y2="432" stroke="#a0a6b5" strokeWidth="24" strokeLinecap="round"/>
+                <rect x="70" y="55" width="22" height="70" rx="4" fill="#e51b24" transform="rotate(45 80 90)"/>
+                <rect x="420" y="405" width="22" height="70" rx="4" fill="#e51b24" transform="rotate(45 430 440)"/>
+                <line x1="432" y1="80" x2="80" y2="432" stroke="#a0a6b5" strokeWidth="24" strokeLinecap="round"/>
+                <rect x="420" y="55" width="22" height="70" rx="4" fill="#e51b24" transform="rotate(-45 430 90)"/>
+                <rect x="70" y="405" width="22" height="70" rx="4" fill="#e51b24" transform="rotate(-45 80 440)"/>
+                <path d="M 256 100 C 340 100, 390 135, 390 190 C 390 320, 256 425, 256 425 C 256 425, 122 320, 122 190 C 122 135, 172 100, 256 100 Z" fill="#16181d" stroke="#ffffff" strokeWidth="18" strokeLinejoin="round"/>
+                <path d="M 256 122 C 324 122, 368 152, 368 198 C 368 305, 256 395, 256 395 C 256 395, 144 305, 144 198 C 144 152, 188 122, 256 122 Z" fill="#0d0e12" stroke="#e51b24" strokeWidth="8"/>
+                <path d="M 180 185 L 214 185 L 238 290 L 256 220 L 274 290 L 298 185 L 332 185 L 292 340 L 262 340 L 256 312 L 250 340 L 220 340 Z" fill="#ffffff"/>
+                <polygon points="256,160 266,220 256,245 246,220" fill="#e51b24"/>
+              </svg>
+            </div>
+            <span className="auth-hero-kicker">MEMBER AND STAFF ACCESS</span>
+            <h1 className="auth-hero-headline">
+              MAKE EVERY<br />
+              TRAINING<br />
+              DAY BETTER.
+            </h1>
+            <p className="auth-hero-desc">
+              One secure login connects staff, Fat Fighter members, Gym members, and online coaching members to the right Warriors area automatically.
             </p>
+            <div className="auth-hero-pills">
+              <span className="auth-pill">STAFF</span>
+              <span className="auth-pill">FAT FIGHTER</span>
+              <span className="auth-pill">GYM MEMBER</span>
+              <span className="auth-pill">ABROAD MEMBER</span>
+            </div>
           </div>
-          {register && (
-            <>
-              <label>
-                Full name
-                <input
-                  name="name"
-                  value={form.name}
-                  onChange={update}
-                  placeholder="e.g. Riya Sharma"
-                  required
-                />
-              </label>
-              <label>
-                Village / Locality
-                <input
-                  name="village"
-                  value={form.village}
-                  onChange={update}
-                  placeholder="Village or locality name"
-                />
-              </label>
-            </>
-          )}
-          <label>
-            Phone number
-            <input
-              name="phone"
-              value={form.phone}
-              onChange={update}
-              placeholder="10 digit mobile number"
-              required
-            />
-          </label>
-          <label>
-            Password
-            <input
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={update}
-              placeholder="••••••••"
-              required
-            />
-          </label>
-          {register && (
-            <label className="picture-upload">
-              Profile picture
-              <input type="file" accept="image/*" onChange={updatePicture} />
-              {form.profilePicture && (
-                <img src={form.profilePicture} alt="Profile preview" />
+        </section>
+
+        <section className="auth-card-pane">
+          <div className="auth-card">
+            <span className="auth-card-kicker">
+              {register ? "SECURE REGISTRATION" : "SECURE LOGIN"}
+            </span>
+            <h2 className="auth-card-title">
+              {register ? "SIGN UP" : "SIGN IN"}
+            </h2>
+
+            <form className="auth-card-form" onSubmit={submit}>
+              {register && (
+                <>
+                  <div className="auth-field-group">
+                    <label className="auth-field-label">FULL NAME</label>
+                    <input
+                      className="auth-input-light"
+                      name="name"
+                      value={form.name}
+                      onChange={update}
+                      placeholder="e.g. Rahul Sharma"
+                      required
+                    />
+                  </div>
+                  <div className="auth-field-group">
+                    <label className="auth-field-label">VILLAGE / LOCALITY</label>
+                    <input
+                      className="auth-input-light"
+                      name="village"
+                      value={form.village}
+                      onChange={update}
+                      placeholder="Village or locality name"
+                    />
+                  </div>
+                </>
               )}
-              <small>JPG, PNG or WEBP · maximum 2 MB</small>
-            </label>
-          )}
-          {error && <div className="form-error">{error}</div>}
-          <Button className="submit-button" disabled={busy}>
-            {busy
-              ? "Loading..."
-              : register
-                ? "Create warrior profile"
-                : "Enter the club"}{" "}
-            <ArrowUpRight size={17} />
-          </Button>
-          <button
-            type="button"
-            className="switch-auth"
-            onClick={() => { setRegister(!register); setError(""); }}
-          >
-            {register
-              ? "Already a member? Sign in"
-              : "New here? Create your profile"}
-          </button>
-        </form>
-        <div className="secure-note">
-          <ShieldCheck size={16} /> Your information is encrypted and never
-          shared.
-        </div>
+
+              <div className="auth-field-group">
+                <label className="auth-field-label">
+                  {register ? "PHONE / USERNAME" : "USERNAME"}
+                </label>
+                <input
+                  className="auth-input-light"
+                  name="phone"
+                  value={form.phone}
+                  onChange={update}
+                  placeholder={register ? "10 digit mobile number" : "10 digit mobile number or ID"}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="auth-field-group">
+                <label className="auth-field-label">PASSWORD</label>
+                <div className="auth-password-wrapper">
+                  <input
+                    className="auth-input-light"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    value={form.password}
+                    onChange={update}
+                    placeholder="••••••••••••"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="auth-pw-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              {register && (
+                <div className="auth-field-group">
+                  <label className="auth-field-label">PROFILE PICTURE (OPTIONAL)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={updatePicture}
+                    className="auth-file-input"
+                  />
+                  {form.profilePicture && (
+                    <img src={form.profilePicture} alt="Profile preview" className="auth-picture-preview" />
+                  )}
+                </div>
+              )}
+
+              {error && (
+                <div className="auth-error-msg">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="auth-red-btn"
+                disabled={busy}
+              >
+                {busy
+                  ? (register ? "CREATING ACCOUNT..." : "LOGGING IN...")
+                  : (register ? "REGISTER" : "LOGIN")}
+              </button>
+
+              <div className="auth-card-footer">
+                <span className="auth-footer-tag">
+                  THE SYSTEM IDENTIFIES YOUR ACCOUNT TYPE AUTOMATICALLY.
+                </span>
+                <button
+                  type="button"
+                  className="auth-switch-btn"
+                  onClick={() => {
+                    setRegister(!register);
+                    setError("");
+                  }}
+                >
+                  {register ? "SIGN IN" : "CREATE ACCOUNT"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
       </div>
     </main>
   );

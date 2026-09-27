@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 240" width="100%" height="100%">
+  <defs>
+    <linearGradient id="logoShieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="50%" stop-color="#cbd0db"/>
+      <stop offset="100%" stop-color="#808899"/>
+    </linearGradient>
+    <linearGradient id="logoRed" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff3333"/>
+      <stop offset="100%" stop-color="#c91616"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Emblem on the left -->
+  <g transform="translate(20, 20) scale(0.39)">
+    <!-- Barbells -->
+    <line x1="80" y1="80" x2="432" y2="432" stroke="#9da3af" stroke-width="22" stroke-linecap="round"/>
+    <rect x="70" y="55" width="20" height="70" rx="4" fill="url(#logoRed)" transform="rotate(45 80 90)"/>
+    <rect x="420" y="405" width="20" height="70" rx="4" fill="url(#logoRed)" transform="rotate(45 430 440)"/>
+
+    <line x1="432" y1="80" x2="80" y2="432" stroke="#9da3af" stroke-width="22" stroke-linecap="round"/>
+    <rect x="420" y="55" width="20" height="70" rx="4" fill="url(#logoRed)" transform="rotate(-45 430 90)"/>
+    <rect x="70" y="405" width="20" height="70" rx="4" fill="url(#logoRed)" transform="rotate(-45 80 440)"/>
+
+    <!-- Shield -->
+    <path d="M 256 100 C 340 100, 390 135, 390 190 C 390 320, 256 425, 256 425 C 256 425, 122 320, 122 190 C 122 135, 172 100, 256 100 Z"
+          fill="#16181d" stroke="url(#logoShieldGrad)" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M 256 122 C 324 122, 368 152, 368 198 C 368 305, 256 395, 256 395 C 256 395, 144 305, 144 198 C 144 152, 188 122, 256 122 Z"
+          fill="#0d0e12" stroke="#ff2222" stroke-width="6"/>
+
+    <!-- W -->
+    <path d="M 180 185 L 214 185 L 238 290 L 256 220 L 274 290 L 298 185 L 332 185 L 292 340 L 262 340 L 256 312 L 250 340 L 220 340 Z" fill="url(#logoShieldGrad)"/>
+    <polygon points="256,160 266,220 256,245 246,220" fill="url(#logoRed)"/>
+  </g>
+
+  <!-- Typography -->
+  <text x="250" y="115" font-family="'Space Grotesk', 'Impact', sans-serif" font-weight="800" font-size="76" letter-spacing="4" fill="#ffffff">WARRIORS</text>
+  <text x="680" y="115" font-family="'Space Grotesk', 'Impact', sans-serif" font-weight="800" font-size="76" letter-spacing="4" fill="#ff2a2a">GYM</text>
+  <text x="252" y="165" font-family="'DM Mono', monospace" font-weight="600" font-size="22" letter-spacing="9" fill="#9da3af">FITNESS / PERFORMANCE CLUB</text>
+</svg>
