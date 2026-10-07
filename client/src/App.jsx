@@ -7,21 +7,50 @@ import {
   BarChart3,
   Bell,
   Check,
+  ChevronLeft,
   ChevronRight,
+  Clock,
   Dumbbell,
   Eye,
   EyeOff,
+  Flame,
+  HeartPulse,
   LayoutDashboard,
   LogOut,
+  MapPin,
   Menu,
+  MessageCircle,
+  Phone,
+  Play,
   ShieldCheck,
+  Star,
   Trophy,
   UserRound,
   Users,
+  Utensils,
   X,
   Zap,
 } from "lucide-react";
 import "./App.css";
+
+function InstagramIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+    </svg>
+  );
+}
+
+function YoutubeIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="15" x="2" y="4.5" rx="4" ry="4"/>
+      <polygon points="10 9 15 12 10 15 10 9" fill="currentColor"/>
+    </svg>
+  );
+}
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -245,146 +274,779 @@ function Status({ status }) {
 }
 
 function Landing({ onLogin, onRegister }) {
+  const [plans, setPlans] = useState([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [transformationIndex, setTransformationIndex] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [storyModalOpen, setStoryModalOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    api("/plans")
+      .then((res) => {
+        if (active && res?.plans) {
+          setPlans(res.plans);
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not load public plans for landing:", err.message);
+      })
+      .finally(() => {
+        if (active) setLoadingPlans(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const transformations = [
+    {
+      badge: "+12 KG MUSCLE GAIN",
+      title: "Hypertrophy & Mass Progression",
+      subtitle: "Dedicated progressive overload & customized caloric balance.",
+      duration: "16 Weeks Training",
+      category: "STRENGTH & HYPERTROPHY",
+    },
+    {
+      badge: "-15 KG FAT LOSS",
+      title: "Metabolic Lean Definition",
+      subtitle: "High-density conditioning, functional intervals & sustained deficit.",
+      duration: "20 Weeks Training",
+      category: "FAT LOSS & CONDITIONING",
+    },
+    {
+      badge: "STRENGTH & CONFIDENCE",
+      title: "Complete Athletic Recomposition",
+      subtitle: "Compound barbell mastery, postural alignment & daily discipline.",
+      duration: "24 Weeks Training",
+      category: "ATHLETIC RECOMPOSITION",
+    },
+  ];
+
+  const facilities = [
+    {
+      title: "Strength Training",
+      kicker: "HEAVY DUTY ZONE",
+      desc: "Olympic power cages, competition barbells, calibrated cast iron plates.",
+      image: "/images/facility-strength.jpg",
+    },
+    {
+      title: "Cardio Zone",
+      kicker: "ENDURANCE ARENA",
+      desc: "Commercial treadmills, stairmasters and high-performance monitors.",
+      image: "/images/facility-cardio.jpg",
+    },
+    {
+      title: "Free Weights",
+      kicker: "PRECISION RIG",
+      desc: "Tiered dumbbells up to 50kg, precision kettlebells and adjustable benches.",
+      image: "/images/facility-freeweights.jpg",
+    },
+    {
+      title: "Functional Training",
+      kicker: "AGILITY & POWER",
+      desc: "Indoor green sprint turf track, heavy prowler sleds and battle ropes.",
+      image: "/images/facility-functional.jpg",
+    },
+  ];
+
+  const testimonials = [
+    {
+      name: "Rohit Kumar",
+      duration: "3 months member",
+      avatar: "RK",
+      quote:
+        "Best gym in the city. Amazing trainers, heavy-duty equipment, and an intensely supportive environment. I feel much stronger and more confident now.",
+    },
+    {
+      name: "Anjali Sharma",
+      duration: "6 months member",
+      avatar: "AS",
+      quote:
+        "The personalized workout routine and diet guidance actually work. Lost 12 kg while gaining real strength, energy, and mental discipline!",
+    },
+    {
+      name: "Priyansh Mehta",
+      duration: "1 year member",
+      avatar: "PM",
+      quote:
+        "Great community and exceptionally well-equipped gym. Coaches are dedicated, the atmosphere is electric, and the digital portal makes tracking effortless.",
+    },
+  ];
+
+  const scrollTo = (id) => {
+    setMobileMenuOpen(false);
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const nextTransformation = () => {
+    setTransformationIndex((prev) => (prev + 1) % transformations.length);
+  };
+  const prevTransformation = () => {
+    setTransformationIndex((prev) => (prev - 1 + transformations.length) % transformations.length);
+  };
+
+  const sortedPlans = [...plans].sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+
+  const isPopular = (plan, idx, total) => {
+    const nameLower = (plan.name || "").toLowerCase();
+    if (nameLower.includes("advance") || nameLower.includes("popular")) return true;
+    if (total >= 3 && idx === 1) return true;
+    if (total === 2 && idx === 1) return true;
+    return false;
+  };
+
   return (
-    <main className="landing">
-      <nav className="landing-nav">
+    <main className="landing cinematic-landing">
+      {/* 1. STICKY CINEMATIC NAVIGATION */}
+      <header className="cinematic-nav">
         <Brand />
-        <div className="nav-links">
-          <a href="#method">Method</a>
-          <a href="#plans">Membership</a>
-          <a href="#contact">Contact</a>
+        <nav className="cinematic-nav-links">
+          <button type="button" onClick={() => scrollTo("home")}>Home</button>
+          <button type="button" onClick={() => scrollTo("method")}>Method</button>
+          <button type="button" onClick={() => scrollTo("membership")}>Membership</button>
+          <button type="button" onClick={() => scrollTo("facilities")}>Facilities</button>
+          <button type="button" onClick={() => scrollTo("transformation")}>Transformation</button>
+          <button type="button" onClick={() => scrollTo("contact")}>Contact</button>
+        </nav>
+        <div className="cinematic-nav-actions">
+          <button
+            type="button"
+            className="owner-link-btn"
+            onClick={() => onLogin("owner")}
+            title="Owner Portal Access"
+          >
+            Owner Portal
+          </button>
+          <button
+            type="button"
+            className="member-login-pill-btn"
+            onClick={() => onLogin("member")}
+          >
+            Member Login <ArrowUpRight size={15} />
+          </button>
+          <button
+            type="button"
+            className="mobile-hamburger-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle Navigation"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
-        <Button variant="outline" onClick={() => onLogin("member")}>
-          Member login <ArrowUpRight size={15} />
-        </Button>
-      </nav>
-      <section className="hero-section">
-        <div className="hero-copy">
-          <div className="eyebrow">
-            <span className="eyebrow-line" /> EST. 2018 · WARRIORS PERFORMANCE CLUB
+      </header>
+
+      {/* MOBILE NAVIGATION DRAWER */}
+      {mobileMenuOpen && (
+        <div className="mobile-nav-drawer">
+          <div className="mobile-nav-links">
+            <button type="button" onClick={() => scrollTo("home")}>Home</button>
+            <button type="button" onClick={() => scrollTo("method")}>Method</button>
+            <button type="button" onClick={() => scrollTo("membership")}>Membership</button>
+            <button type="button" onClick={() => scrollTo("facilities")}>Facilities</button>
+            <button type="button" onClick={() => scrollTo("transformation")}>Transformation</button>
+            <button type="button" onClick={() => scrollTo("contact")}>Contact</button>
           </div>
-          <h1>
-            BUILD YOUR
-            <br />
-            <em>STRENGTH.</em>
-          </h1>
-          <p className="hero-tagline">
-            A focused training environment for people who are serious about
-            becoming harder to stop.
-          </p>
-          <div className="hero-actions">
-            <Button onClick={onRegister}>
-              Join warriors <ArrowUpRight size={17} />
-            </Button>
-            <button className="text-action" onClick={() => onLogin("owner")}>
-              Owner portal <ChevronRight size={17} />
+          <div className="mobile-nav-footer">
+            <button
+              type="button"
+              className="member-login-pill-btn full-w"
+              onClick={() => { setMobileMenuOpen(false); onLogin("member"); }}
+            >
+              Member Login <ArrowUpRight size={15} />
+            </button>
+            <button
+              type="button"
+              className="owner-link-btn full-w"
+              onClick={() => { setMobileMenuOpen(false); onLogin("owner"); }}
+            >
+              Owner Portal
             </button>
           </div>
-          <div className="hero-proof">
-            <div className="proof-avatars">
-              <span>AS</span>
-              <span>RK</span>
-              <span>PM</span>
+        </div>
+      )}
+
+      {/* 2. CINEMATIC HERO SECTION */}
+      <section className="cinematic-hero" id="home">
+        <div className="hero-bg-layer">
+          <img
+            src="/images/hero-athlete.jpg"
+            alt="Warriors Gym Champion Athlete"
+            className="hero-bg-img"
+            fetchpriority="high"
+          />
+          <div className="hero-vignette-overlay" />
+          <div className="hero-red-ambient-glow" />
+          <div className="hero-ambient-wall-text" aria-hidden="true">
+            DISCIPLINE BUILDS FREEDOM
+          </div>
+        </div>
+
+        <div className="hero-inner-container">
+          <div className="hero-content-col">
+            <div className="hero-top-badge">
+              <span className="badge-dot" /> EST. 2018 · WARRIORS PERFORMANCE CLUB
             </div>
-            <div>
-              <b>4.9 / 5</b>
-              <small>from 240+ warriors</small>
+            <h1 className="hero-giant-heading">
+              BUILD<br />
+              YOUR<br />
+              <span className="text-crimson">STRENGTH.</span>
+            </h1>
+            <p className="hero-lead-text">
+              A focused training environment for people who are serious about becoming harder to stop.
+            </p>
+            <div className="hero-cta-group">
+              <button
+                type="button"
+                className="btn-primary-crimson"
+                onClick={() => onRegister()}
+              >
+                Join Warriors <ArrowUpRight size={16} />
+              </button>
+              <button
+                type="button"
+                className="btn-secondary-glass"
+                onClick={() => scrollTo("membership")}
+              >
+                View Plans
+              </button>
+            </div>
+            <div className="hero-social-proof-pill">
+              <div className="avatar-stack">
+                <span className="av-circle av-1">AS</span>
+                <span className="av-circle av-2">RK</span>
+                <span className="av-circle av-3">PM</span>
+              </div>
+              <div className="proof-ratings-text">
+                <div className="proof-score">
+                  <Star size={13} fill="#f59e0b" color="#f59e0b" /> 4.9 / 5
+                </div>
+                <div className="proof-caption">from 240+ warriors</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="hero-right-badge-wrap">
+            <div className="hero-floating-glass-badge">
+              <small className="badge-num">04 / 08</small>
+              <b className="badge-tag">DISCIPLINE OVER MOTIVATION</b>
+              <ArrowUpRight size={14} className="badge-arrow" />
             </div>
           </div>
         </div>
-        <div className="hero-art">
-          <div className="art-glow" />
-          <div className="plate plate-back">45</div>
-          <div className="plate plate-mid">25</div>
-          <div className="plate plate-front">W</div>
-          <div className="barbell">
-            <span />
-            <i />
-            <span />
+      </section>
+
+      {/* 3. 4 PILLARS FEATURE STRIP */}
+      <section className="pillars-strip">
+        <div className="pillars-grid">
+          <div className="pillar-card">
+            <div className="pillar-icon-box">
+              <Dumbbell size={20} />
+            </div>
+            <div className="pillar-text">
+              <h3>TRAIN WITH INTENT</h3>
+              <p>Structured workout plans for real results</p>
+            </div>
           </div>
-          <div className="art-label">
-            <small>01 / 03</small>
-            <b>
-              DISCIPLINE
-              <br />
-              OVER MOTIVATION
-            </b>
+
+          <div className="pillar-card">
+            <div className="pillar-icon-box">
+              <Utensils size={20} />
+            </div>
+            <div className="pillar-text">
+              <h3>EAT WITH PURPOSE</h3>
+              <p>Personalized diet guidance for your goals</p>
+            </div>
+          </div>
+
+          <div className="pillar-card">
+            <div className="pillar-icon-box">
+              <HeartPulse size={20} />
+            </div>
+            <div className="pillar-text">
+              <h3>LIVE WITH POWER</h3>
+              <p>Build strength, confidence and better habits</p>
+            </div>
+          </div>
+
+          <div className="pillar-card">
+            <div className="pillar-icon-box">
+              <Users size={20} />
+            </div>
+            <div className="pillar-text">
+              <h3>SUPPORTIVE COMMUNITY</h3>
+              <p>Surround yourself with like-minded people</p>
+            </div>
           </div>
         </div>
       </section>
-      <section className="marquee">
-        <span>TRAIN WITH INTENT</span>
-        <i>✦</i>
-        <span>EAT WITH PURPOSE</span>
-        <i>✦</i>
-        <span>LIVE WITH POWER</span>
-        <i>✦</i>
-        <span>TRAIN WITH INTENT</span>
+
+      {/* 4. THE WARRIORS METHOD */}
+      <section className="method-section" id="method">
+        <div className="method-container">
+          <div className="method-left-copy">
+            <span className="kicker-tag">THE WARRIORS METHOD</span>
+            <h2 className="section-huge-heading">
+              YOUR NEXT LEVEL<br />
+              IS <span className="text-crimson">BUILT DAILY.</span>
+            </h2>
+            <p className="method-desc">
+              We combine intelligent programming, honest coaching, and a community that expects more from you. No noise. No shortcuts. Just the work that changes everything.
+            </p>
+            <button
+              type="button"
+              className="btn-primary-crimson method-btn"
+              onClick={() => scrollTo("membership")}
+            >
+              Our Method <ArrowUpRight size={16} />
+            </button>
+          </div>
+
+          <div className="method-center-media">
+            <div className="media-frame" onClick={() => setStoryModalOpen(true)}>
+              <img
+                src="/images/method-curls.jpg"
+                alt="Warriors Gym Training Showcase"
+                className="method-media-img"
+                loading="lazy"
+              />
+              <div className="media-overlay-glow" />
+              <button
+                type="button"
+                className="play-story-btn"
+                onClick={(e) => { e.stopPropagation(); setStoryModalOpen(true); }}
+                aria-label="Watch Our Story"
+              >
+                <span className="play-icon-circle"><Play size={20} fill="#fff" /></span>
+                <span className="play-label">WATCH OUR STORY</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="method-right-stats">
+            <div className="stat-box">
+              <b className="stat-number">06</b>
+              <small className="stat-label">Years sharpening the craft</small>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-box">
+              <b className="stat-number">240+</b>
+              <small className="stat-label">Active warriors in the club</small>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-box">
+              <b className="stat-number">24/7</b>
+              <small className="stat-label">Digital training companion</small>
+            </div>
+          </div>
+        </div>
       </section>
-      <section className="manifesto" id="method">
-        <div>
-          <div className="eyebrow">THE WARRIORS METHOD</div>
-          <h2>
-            YOUR NEXT LEVEL
-            <br />
-            <em>IS BUILT DAILY.</em>
+
+      {/* 5. MEMBERSHIP PLANS (FROM MONGODB) */}
+      <section className="membership-section" id="membership">
+        <div className="membership-header-row">
+          <div>
+            <span className="kicker-tag">MEMBERSHIP, WITHOUT THE FRICTION</span>
+            <h2 className="section-huge-heading">
+              CHOOSE YOUR<br />
+              <span className="text-crimson">COMMITMENT.</span>
+            </h2>
+          </div>
+          <button
+            type="button"
+            className="view-all-plans-link"
+            onClick={() => onRegister()}
+          >
+            View All Plans <ArrowUpRight size={15} />
+          </button>
+        </div>
+
+        <div className="membership-interactive-layout">
+          <div className="membership-ambient-side">
+            <div className="plates-art-wrap">
+              <div className="ambient-plate plate-3">45</div>
+              <div className="ambient-plate plate-2">25</div>
+              <div className="ambient-plate plate-1">W</div>
+              <div className="ambient-ember-glow" />
+            </div>
+            <div className="membership-side-quote">
+              <Flame size={18} className="text-crimson" />
+              <p>Transparent pricing from MongoDB. Zero hidden front-desk fees. Secure Razorpay checkout.</p>
+            </div>
+          </div>
+
+          <div className="membership-cards-grid">
+            {loadingPlans ? (
+              <div className="plan-skeleton-row">
+                <div className="plan-skeleton-card" />
+                <div className="plan-skeleton-card popular" />
+                <div className="plan-skeleton-card" />
+              </div>
+            ) : sortedPlans.length === 0 ? (
+              <div className="empty-plans-box">
+                <Trophy size={32} />
+                <h3>Active Plans Updating</h3>
+                <p>Please check back shortly or contact Warriors Gym front desk.</p>
+              </div>
+            ) : (
+              sortedPlans.map((plan, idx) => {
+                const popular = isPopular(plan, idx, sortedPlans.length);
+                const durationLabel = `${plan.duration} ${String(plan.durationUnit || "MONTHS").toLowerCase()}`;
+                const durationSubtitle = `For ${plan.duration} ${String(plan.durationUnit || "MONTHS").toLowerCase()} of focused training.`;
+                const featuresList = Array.isArray(plan.features) && plan.features.length > 0
+                  ? plan.features
+                  : ["Full access to gym floor", "Personalized workout routine", "Diet guidance & accountability", "Digital member portal"];
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={`cinematic-plan-card ${popular ? "is-popular-card" : ""}`}
+                  >
+                    {popular && (
+                      <div className="popular-badge-pill">
+                        MOST POPULAR
+                      </div>
+                    )}
+                    <div className="plan-card-header">
+                      <div className="plan-title-row">
+                        <h3 className="plan-card-name">
+                          WARRIOR {plan.name.toUpperCase()}
+                        </h3>
+                      </div>
+                      <div className="plan-price-block">
+                        <span className="plan-price-val">{money.format(plan.price)}</span>
+                        <span className="plan-price-period">/ {durationLabel}</span>
+                      </div>
+                      <p className="plan-card-subtitle">{durationSubtitle}</p>
+                    </div>
+
+                    <div className="plan-features-list">
+                      {featuresList.map((feat, fIdx) => (
+                        <div key={fIdx} className="feature-item">
+                          <Check size={14} className="feature-check-icon" />
+                          <span>{feat}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="plan-card-footer">
+                      <button
+                        type="button"
+                        className={`plan-cta-btn ${popular ? "btn-popular-crimson" : "btn-standard-glass"}`}
+                        onClick={() => onRegister(plan.id)}
+                      >
+                        {popular ? "Choose Plan" : "Get Started"} <ArrowUpRight size={15} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* 6. PREMIUM FACILITIES */}
+      <section className="facilities-section" id="facilities">
+        <div className="section-title-wrap">
+          <span className="kicker-tag">PREMIUM FACILITIES</span>
+          <h2 className="section-huge-heading">
+            EVERYTHING YOU NEED UNDER <span className="text-crimson">ONE ROOF.</span>
           </h2>
         </div>
-        <p>
-          We combine intelligent programming, honest coaching, and a community
-          that expects more from you. No noise. No shortcuts. Just the work that
-          changes everything.
-        </p>
-        <div className="manifesto-stats">
-          <div>
-            <b>06</b>
-            <small>
-              Years sharpening
-              <br />
-              the craft
-            </small>
-          </div>
-          <div>
-            <b>240+</b>
-            <small>
-              Active warriors
-              <br />
-              in the club
-            </small>
-          </div>
-          <div>
-            <b>24/7</b>
-            <small>
-              Digital training
-              <br />
-              companion
-            </small>
-          </div>
+
+        <div className="facilities-grid">
+          {facilities.map((fac, idx) => (
+            <div key={idx} className="facility-card">
+              <div className="facility-img-wrap">
+                <img
+                  src={fac.image}
+                  alt={fac.title}
+                  className="facility-img"
+                  loading="lazy"
+                />
+                <div className="facility-img-gradient" />
+              </div>
+              <div className="facility-content">
+                <span className="facility-kicker">{fac.kicker}</span>
+                <h3 className="facility-title">{fac.title}</h3>
+                <p className="facility-desc">{fac.desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
-      <section className="plan-strip" id="plans">
-        <div>
-          <div className="eyebrow">MEMBERSHIP, WITHOUT THE FRICTION</div>
-          <h2>
-            CHOOSE YOUR
-            <br />
-            <em>COMMITMENT.</em>
+
+      {/* 7. WARRIORS TRANSFORMATIONS */}
+      <section className="transformations-section" id="transformation">
+        <div className="transformations-header-row">
+          <div>
+            <span className="kicker-tag">REAL PEOPLE. REAL RESULTS.</span>
+            <h2 className="section-huge-heading">
+              WARRIORS <span className="text-crimson">TRANSFORMATIONS.</span>
+            </h2>
+          </div>
+          <div className="carousel-nav-arrows">
+            <button
+              type="button"
+              className="carousel-btn"
+              onClick={prevTransformation}
+              aria-label="Previous Transformation"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              type="button"
+              className="carousel-btn"
+              onClick={nextTransformation}
+              aria-label="Next Transformation"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div className="transformations-showcase-row">
+          {transformations.map((t, idx) => {
+            const isCurrent = idx === transformationIndex;
+            return (
+              <div
+                key={idx}
+                className={`transformation-spotlight-card ${isCurrent ? "spotlight-active" : ""}`}
+                onClick={() => setTransformationIndex(idx)}
+              >
+                <div className="spotlight-visual-box">
+                  <div className="transformation-split-visual">
+                    <div className="split-half before-half">
+                      <span className="split-tag">BEFORE</span>
+                    </div>
+                    <div className="split-divider-line" />
+                    <div className="split-half after-half">
+                      <span className="split-tag red-tag">AFTER</span>
+                    </div>
+                  </div>
+                  <div className="trans-result-pill">
+                    {t.badge}
+                  </div>
+                </div>
+                <div className="spotlight-meta">
+                  <span className="spotlight-cat">{t.category}</span>
+                  <h3 className="spotlight-title">{t.title}</h3>
+                  <p className="spotlight-sub">{t.subtitle}</p>
+                  <small className="spotlight-duration">Timeline: {t.duration}</small>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 8. MEMBER TESTIMONIALS */}
+      <section className="testimonials-section">
+        <div className="section-title-wrap">
+          <span className="kicker-tag">WHAT OUR MEMBERS SAY</span>
+          <h2 className="section-huge-heading">
+            A STRONGER <span className="text-crimson">COMMUNITY EVERYDAY.</span>
           </h2>
         </div>
-        <div className="plan-teaser">
-          <span>Most popular</span>
-          <b>WARRIOR 3 MONTHS</b>
-          <strong>{money.format(2499)}</strong>
-          <Button onClick={onRegister}>
-            See plans <ArrowUpRight size={15} />
-          </Button>
+
+        <div className="testimonials-grid">
+          {testimonials.map((testi, idx) => (
+            <div key={idx} className="testimonial-luxury-card">
+              <div className="testimonial-author-row">
+                <div className="testimonial-avatar-wrap">
+                  <span className="testi-av">{testi.avatar}</span>
+                </div>
+                <div className="testimonial-author-info">
+                  <h4 className="testi-author-name">{testi.name}</h4>
+                  <small className="testi-author-meta">{testi.duration}</small>
+                  <div className="testi-stars">
+                    {[...Array(5)].map((_, s) => (
+                      <Star key={s} size={13} fill="#f59e0b" color="#f59e0b" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="testimonial-quote-body">
+                "{testi.quote}"
+              </p>
+            </div>
+          ))}
         </div>
       </section>
-      <footer id="contact">
-        <Brand compact />
-        <span>BUILD YOUR STRENGTH. BUILD YOURSELF.</span>
-        <span>© 2026 WARRIORS GYM</span>
+
+      {/* 9. FINAL CALL-TO-ACTION BANNER */}
+      <section className="cta-banner-section">
+        <div className="cta-banner-inner">
+          <img
+            src="/images/cta-banner.jpg"
+            alt="Warriors Gym Discipline"
+            className="cta-banner-bg-img"
+            loading="lazy"
+          />
+          <div className="cta-banner-overlay" />
+
+          <div className="cta-banner-content-col">
+            <h2 className="cta-banner-heading">
+              READY TO BECOME<br />
+              A <span className="text-crimson">WARRIOR?</span>
+            </h2>
+            <p className="cta-banner-subtitle">
+              Join a community that pushes you, supports you and helps you build a stronger, healthier, better you.
+            </p>
+            <div className="cta-btn-wrap">
+              <button
+                type="button"
+                className="btn-primary-crimson cta-join-btn"
+                onClick={() => onRegister()}
+              >
+                Join Now <ArrowUpRight size={17} />
+              </button>
+            </div>
+
+            <div className="cta-perks-row">
+              <div className="cta-perk"><Check size={14} className="text-crimson" /> No Long Contracts</div>
+              <div className="cta-perk"><HeartPulse size={14} className="text-crimson" /> Expert Guidance</div>
+              <div className="cta-perk"><Users size={14} className="text-crimson" /> Supportive Community</div>
+              <div className="cta-perk"><Trophy size={14} className="text-crimson" /> Real Results</div>
+            </div>
+          </div>
+
+          <div className="cta-banner-quote-col" aria-hidden="true">
+            <div className="stencil-phrase">
+              <span>DISCIPLINE</span>
+              <span>TODAY</span>
+              <span className="accent-phrase">A STRONGER</span>
+              <span className="accent-phrase">TOMORROW</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 10. PREMIUM FOOTER */}
+      <footer className="cinematic-footer" id="contact">
+        <div className="footer-top-row">
+          <div className="footer-brand-col">
+            <Brand />
+            <p className="footer-tagline">
+              BUILD YOUR STRENGTH. BUILD YOURSELF.
+            </p>
+          </div>
+
+          <nav className="footer-nav-col">
+            <button type="button" onClick={() => scrollTo("home")}>Home</button>
+            <button type="button" onClick={() => scrollTo("method")}>Method</button>
+            <button type="button" onClick={() => scrollTo("membership")}>Membership</button>
+            <button type="button" onClick={() => scrollTo("facilities")}>Facilities</button>
+            <button type="button" onClick={() => scrollTo("transformation")}>Transformation</button>
+            <button type="button" onClick={() => scrollTo("contact")}>Contact</button>
+          </nav>
+
+          <div className="footer-social-col">
+            <a
+              href="https://instagram.com"
+              target="_blank"
+              rel="noreferrer"
+              className="footer-social-icon"
+              aria-label="Instagram"
+            >
+              <InstagramIcon size={18} />
+            </a>
+            <a
+              href="https://youtube.com"
+              target="_blank"
+              rel="noreferrer"
+              className="footer-social-icon"
+              aria-label="YouTube"
+            >
+              <YoutubeIcon size={18} />
+            </a>
+            <a
+              href="https://wa.me/919761933379"
+              target="_blank"
+              rel="noreferrer"
+              className="footer-social-icon"
+              aria-label="WhatsApp"
+            >
+              <MessageCircle size={18} />
+            </a>
+          </div>
+        </div>
+
+        <div className="footer-info-row">
+          <div className="footer-info-item">
+            <MapPin size={15} className="text-crimson" />
+            <span>Warriors Training Arena, Sector 4</span>
+          </div>
+          <div className="footer-info-item">
+            <Clock size={15} className="text-crimson" />
+            <span>Mon – Sun: 06:00 AM – 10:00 PM</span>
+          </div>
+          <div className="footer-info-item">
+            <Phone size={15} className="text-crimson" />
+            <span>+91 97619 33379</span>
+          </div>
+        </div>
+
+        <div className="footer-bottom-row">
+          <span>© 2026 WARRIORS GYM. All rights reserved.</span>
+          <div className="footer-legal-links">
+            <button type="button" onClick={() => onLogin("owner")} className="footer-owner-link">
+              Owner Portal
+            </button>
+            <button type="button" onClick={() => onLogin("member")} className="footer-member-link">
+              Member Login
+            </button>
+          </div>
+        </div>
       </footer>
+
+      {/* WATCH OUR STORY MODAL */}
+      {storyModalOpen && (
+        <div className="story-modal-backdrop" onClick={() => setStoryModalOpen(false)}>
+          <div className="story-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="story-modal-header">
+              <div className="story-modal-brand">
+                <span className="brand-mark-mini">W</span>
+                <b>WARRIORS GYM · THE CULTURE</b>
+              </div>
+              <button
+                type="button"
+                className="close-story-btn"
+                onClick={() => setStoryModalOpen(false)}
+                aria-label="Close Story"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="story-modal-body">
+              <div className="story-video-placeholder">
+                <img
+                  src="/images/method-curls.jpg"
+                  alt="Training Culture"
+                  className="story-preview-img"
+                />
+                <div className="story-video-text">
+                  <h3>THE STANDARD NEVER DROPS.</h3>
+                  <p>
+                    Every rep counts. We combine heavy-duty strength equipment, structured progressive coaching, and a driven community that pushes you past your limits.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-primary-crimson"
+                    onClick={() => { setStoryModalOpen(false); scrollTo("membership"); }}
+                  >
+                    Explore Membership Plans <ArrowUpRight size={15} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
