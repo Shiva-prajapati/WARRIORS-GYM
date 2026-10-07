@@ -259,6 +259,7 @@ function Landing({ onLogin, onRegister }) {
   const [plans, setPlans] = useState([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [transformationIndex, setTransformationIndex] = useState(0);
+  const [methodImageIndex, setMethodImageIndex] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [storyModalOpen, setStoryModalOpen] = useState(false);
 
@@ -369,6 +370,27 @@ function Landing({ onLogin, onRegister }) {
       el.scrollIntoView({ behavior: "smooth" });
     }
   };
+
+  const methodImages = [
+    { src: "/images/method-curls.jpg", alt: "Athlete bicep dumbbell curls training" },
+    { src: "/images/facility-strength.jpg", alt: "Barbell power cages and Olympic strength training" },
+    { src: "/images/facility-freeweights.jpg", alt: "Free weights precision dumbbell rack" },
+    { src: "/images/facility-functional.jpg", alt: "Functional athletic turf and sled conditioning" },
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTransformationIndex((prev) => (prev + 1) % transformations.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [transformationIndex, transformations.length]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMethodImageIndex((prev) => (prev + 1) % methodImages.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [methodImages.length]);
 
   const nextTransformation = () => {
     setTransformationIndex((prev) => (prev + 1) % transformations.length);
@@ -595,12 +617,15 @@ function Landing({ onLogin, onRegister }) {
 
           <div className="method-center-media">
             <div className="media-frame" onClick={() => setStoryModalOpen(true)}>
-              <img
-                src="/images/method-curls.jpg"
-                alt="Warriors Gym Training Showcase"
-                className="method-media-img"
-                loading="lazy"
-              />
+              {methodImages.map((img, idx) => (
+                <img
+                  key={img.src}
+                  src={img.src}
+                  alt={img.alt}
+                  className={`method-media-img ${idx === methodImageIndex ? "method-img-active" : ""}`}
+                  loading={idx === 0 ? "eager" : "lazy"}
+                />
+              ))}
               <div className="media-overlay-glow" />
               <button
                 type="button"
@@ -797,50 +822,65 @@ function Landing({ onLogin, onRegister }) {
           </div>
         </div>
 
-        <div className="transformations-showcase-row">
-          {transformations.map((t, idx) => {
-            const isCurrent = idx === transformationIndex;
-            return (
-              <div
+        <div className="transformation-carousel-container">
+          <div className="transformation-carousel-viewport">
+            <div
+              className="transformation-carousel-track"
+              style={{ transform: `translateX(-${transformationIndex * 100}%)` }}
+            >
+              {transformations.map((t, idx) => (
+                <div
+                  key={idx}
+                  className="transformation-spotlight-card single-card-mode"
+                >
+                  <div className="spotlight-visual-box">
+                    <div className="transformation-split-visual">
+                      <div className="split-half before-half">
+                        <img
+                          src={t.beforeImage}
+                          alt={`${t.title} before transformation`}
+                          className="transformation-img"
+                          loading="lazy"
+                        />
+                        <span className="split-tag">BEFORE</span>
+                      </div>
+                      <div className="split-divider-line" />
+                      <div className="split-half after-half">
+                        <img
+                          src={t.afterImage}
+                          alt={`${t.title} after transformation`}
+                          className="transformation-img"
+                          loading="lazy"
+                        />
+                        <span className="split-tag red-tag">AFTER</span>
+                      </div>
+                    </div>
+                    <div className="trans-result-pill">
+                      {t.badge}
+                    </div>
+                  </div>
+                  <div className="spotlight-meta">
+                    <span className="spotlight-cat">{t.category}</span>
+                    <h3 className="spotlight-title">{t.title}</h3>
+                    <p className="spotlight-sub">{t.subtitle}</p>
+                    <small className="spotlight-duration">Timeline: {t.duration}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="transformation-dots-row">
+            {transformations.map((_, idx) => (
+              <button
                 key={idx}
-                className={`transformation-spotlight-card ${isCurrent ? "spotlight-active" : ""}`}
+                type="button"
+                className={`transformation-dot ${idx === transformationIndex ? "dot-active" : ""}`}
                 onClick={() => setTransformationIndex(idx)}
-              >
-                <div className="spotlight-visual-box">
-                  <div className="transformation-split-visual">
-                    <div className="split-half before-half">
-                      <img
-                        src={t.beforeImage}
-                        alt={`${t.title} before transformation`}
-                        className="transformation-img"
-                        loading="lazy"
-                      />
-                      <span className="split-tag">BEFORE</span>
-                    </div>
-                    <div className="split-divider-line" />
-                    <div className="split-half after-half">
-                      <img
-                        src={t.afterImage}
-                        alt={`${t.title} after transformation`}
-                        className="transformation-img"
-                        loading="lazy"
-                      />
-                      <span className="split-tag red-tag">AFTER</span>
-                    </div>
-                  </div>
-                  <div className="trans-result-pill">
-                    {t.badge}
-                  </div>
-                </div>
-                <div className="spotlight-meta">
-                  <span className="spotlight-cat">{t.category}</span>
-                  <h3 className="spotlight-title">{t.title}</h3>
-                  <p className="spotlight-sub">{t.subtitle}</p>
-                  <small className="spotlight-duration">Timeline: {t.duration}</small>
-                </div>
-              </div>
-            );
-          })}
+                aria-label={`Go to transformation ${idx + 1}`}
+              />
+            ))}
+          </div>
         </div>
       </section>
 
