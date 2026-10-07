@@ -33,24 +33,6 @@ import {
 } from "lucide-react";
 import "./App.css";
 
-function InstagramIcon({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
-    </svg>
-  );
-}
-
-function YoutubeIcon({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect width="20" height="15" x="2" y="4.5" rx="4" ry="4"/>
-      <polygon points="10 9 15 12 10 15 10 9" fill="currentColor"/>
-    </svg>
-  );
-}
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -306,6 +288,8 @@ function Landing({ onLogin, onRegister }) {
       subtitle: "Dedicated progressive overload & customized caloric balance.",
       duration: "16 Weeks Training",
       category: "STRENGTH & HYPERTROPHY",
+      beforeImage: "/images/transformation-1-before.jpg",
+      afterImage: "/images/transformation-1-after.jpg",
     },
     {
       badge: "-15 KG FAT LOSS",
@@ -313,6 +297,8 @@ function Landing({ onLogin, onRegister }) {
       subtitle: "High-density conditioning, functional intervals & sustained deficit.",
       duration: "20 Weeks Training",
       category: "FAT LOSS & CONDITIONING",
+      beforeImage: "/images/transformation-2-before.jpg",
+      afterImage: "/images/transformation-2-after.jpg",
     },
     {
       badge: "STRENGTH & CONFIDENCE",
@@ -320,6 +306,8 @@ function Landing({ onLogin, onRegister }) {
       subtitle: "Compound barbell mastery, postural alignment & daily discipline.",
       duration: "24 Weeks Training",
       category: "ATHLETIC RECOMPOSITION",
+      beforeImage: "/images/transformation-3-before.jpg",
+      afterImage: "/images/transformation-3-after.jpg",
     },
   ];
 
@@ -821,10 +809,22 @@ function Landing({ onLogin, onRegister }) {
                 <div className="spotlight-visual-box">
                   <div className="transformation-split-visual">
                     <div className="split-half before-half">
+                      <img
+                        src={t.beforeImage}
+                        alt={`${t.title} before transformation`}
+                        className="transformation-img"
+                        loading="lazy"
+                      />
                       <span className="split-tag">BEFORE</span>
                     </div>
                     <div className="split-divider-line" />
                     <div className="split-half after-half">
+                      <img
+                        src={t.afterImage}
+                        alt={`${t.title} after transformation`}
+                        className="transformation-img"
+                        loading="lazy"
+                      />
                       <span className="split-tag red-tag">AFTER</span>
                     </div>
                   </div>
@@ -947,24 +947,6 @@ function Landing({ onLogin, onRegister }) {
 
           <div className="footer-social-col">
             <a
-              href="https://instagram.com"
-              target="_blank"
-              rel="noreferrer"
-              className="footer-social-icon"
-              aria-label="Instagram"
-            >
-              <InstagramIcon size={18} />
-            </a>
-            <a
-              href="https://youtube.com"
-              target="_blank"
-              rel="noreferrer"
-              className="footer-social-icon"
-              aria-label="YouTube"
-            >
-              <YoutubeIcon size={18} />
-            </a>
-            <a
               href="https://wa.me/919761933379"
               target="_blank"
               rel="noreferrer"
@@ -979,7 +961,7 @@ function Landing({ onLogin, onRegister }) {
         <div className="footer-info-row">
           <div className="footer-info-item">
             <MapPin size={15} className="text-crimson" />
-            <span>Warriors Training Arena, Sector 4</span>
+            <span>Sadholi Kadeem, 247121</span>
           </div>
           <div className="footer-info-item">
             <Clock size={15} className="text-crimson" />
